@@ -1,0 +1,12 @@
+.vscode/**
+.claude/**
+src/**
+test/**
+node_modules/**
+.gitignore
+.DS_Store
+tsconfig.json
+esbuild.js
+vitest.config.ts
+resources/icon-colored.svg
+**/*.map
