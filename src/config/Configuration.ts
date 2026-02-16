@@ -39,12 +39,10 @@ export class Configuration {
 
   async setGitHubToken(token: string): Promise<void> {
     await this.context.secrets.store(GITHUB_TOKEN_SECRET_KEY, token);
-    await this.set('github.token', '');
   }
 
   async setGitLabToken(token: string): Promise<void> {
     await this.context.secrets.store(GITLAB_TOKEN_SECRET_KEY, token);
-    await this.set('gitlab.token', '');
   }
 
   onDidChange(callback: () => void): vscode.Disposable {
@@ -82,7 +80,11 @@ export class Configuration {
     }
 
     await this.context.secrets.store(secretKey, legacyToken);
-    await this.set(legacyConfigKey, '');
+    try {
+      await this.set(legacyConfigKey, undefined);
+    } catch {
+      // Legacy config key may not be registered — ignore cleanup failure
+    }
     return legacyToken;
   }
 }

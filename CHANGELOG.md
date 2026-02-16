@@ -9,6 +9,11 @@
 - Fix: issue filter now also supports selecting sort order
 - Fix: improved Webview submit/error handling for comments and issue edits
 
+## 1.0.1 — 2026-02-16
+
+- Fix: token configuration commands no longer fail due to unregistered config keys
+- Fix: legacy token migration handles missing config keys gracefully
+
 ## 0.1.0 — 2026-02-16
 
 Initial release.
