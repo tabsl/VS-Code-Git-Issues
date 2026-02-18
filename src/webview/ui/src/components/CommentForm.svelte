@@ -2,6 +2,9 @@
   import { onMount } from 'svelte';
   import type { MessageToWebview } from '../types';
   import { postMessage } from '../stores/vscodeApi';
+  import FileUploadArea from './FileUploadArea.svelte';
+
+  let { platform = 'github' }: { platform?: 'github' | 'gitlab' } = $props();
 
   let body = $state('');
   let submitting = $state(false);
@@ -38,11 +41,7 @@
 </script>
 
 <div class="comment-form">
-  <textarea
-    bind:value={body}
-    placeholder="Write a comment..."
-    rows="3"
-  ></textarea>
+  <FileUploadArea bind:value={body} placeholder="Write a comment..." rows={3} {platform} />
   <button class="btn-primary" onclick={submit} disabled={!body.trim() || submitting}>
     Comment
   </button>
@@ -57,28 +56,6 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-  }
-
-  textarea {
-    width: 100%;
-    resize: vertical;
-    padding: 8px 10px;
-    border: 1px solid var(--vscode-input-border);
-    background: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
-    border-radius: 4px;
-    font-family: var(--vscode-font-family);
-    font-size: var(--vscode-font-size);
-    box-sizing: border-box;
-    transition: border-color 0.15s;
-  }
-
-  textarea:hover {
-    border-color: var(--vscode-focusBorder);
-  }
-
-  textarea:focus {
-    outline: 1px solid var(--vscode-focusBorder);
   }
 
   .btn-primary {

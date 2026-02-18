@@ -143,6 +143,10 @@ export class GitHubProvider implements IssueProvider {
     return response.data.map((u) => this.mapUser(u));
   }
 
+  supportsFileUpload(): boolean {
+    return false;
+  }
+
   getIssueUrl(issueNumber: number): string {
     return `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`;
   }

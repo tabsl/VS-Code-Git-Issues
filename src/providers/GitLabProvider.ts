@@ -10,6 +10,7 @@ import type {
   UpdateIssueData,
   ListIssuesOptions,
   RepositoryInfo,
+  FileUploadResult,
 } from '../types';
 
 export class GitLabProvider implements IssueProvider {
@@ -156,6 +157,22 @@ export class GitLabProvider implements IssueProvider {
       perPage: 100,
     });
     return (members as any[]).map((m) => this.mapUser(m));
+  }
+
+  supportsFileUpload(): boolean {
+    return true;
+  }
+
+  async uploadFile(fileName: string, fileContent: Buffer): Promise<FileUploadResult> {
+    const result = await (this.gitlab.Projects as any).upload(
+      this.projectPath,
+      { content: new Blob([fileContent]), filename: fileName }
+    );
+    return {
+      markdown: result.markdown,
+      url: result.url,
+      alt: result.alt,
+    };
   }
 
   getIssueUrl(issueNumber: number): string {

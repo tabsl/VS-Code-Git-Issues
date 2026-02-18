@@ -8,6 +8,7 @@ import type {
   UpdateIssueData,
   ListIssuesOptions,
   RepositoryInfo,
+  FileUploadResult,
 } from '../types';
 
 export interface IssueProvider {
@@ -33,6 +34,10 @@ export interface IssueProvider {
 
   // User
   getCurrentUser(): Promise<User>;
+
+  // File upload
+  supportsFileUpload(): boolean;
+  uploadFile?(fileName: string, fileContent: Buffer): Promise<FileUploadResult>;
 
   // Utility
   getIssueUrl(issueNumber: number): string;

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import type { IssueDetail, Label, User, RepositoryInfo, MessageToWebview } from '../types';
   import { postMessage } from '../stores/vscodeApi';
+  import FileUploadArea from './FileUploadArea.svelte';
 
   let {
     issue,
@@ -112,7 +113,7 @@
 
   <div class="field">
     <label for="body">Description</label>
-    <textarea id="body" bind:value={body} rows="10"></textarea>
+    <FileUploadArea bind:value={body} placeholder="Issue description..." rows={10} platform={repositoryInfo?.platform || 'github'} />
   </div>
 
   <div class="field">
@@ -267,7 +268,7 @@
     letter-spacing: 0.05em;
   }
 
-  input, textarea {
+  input {
     width: 100%;
     padding: 6px 10px;
     border: 1px solid var(--vscode-input-border);
@@ -279,12 +280,8 @@
     box-sizing: border-box;
   }
 
-  input:focus, textarea:focus {
+  input:focus {
     outline: 1px solid var(--vscode-focusBorder);
-  }
-
-  textarea {
-    resize: vertical;
   }
 
   .empty-hint {

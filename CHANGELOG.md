@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 — 2026-02-18
+
+- Add: file upload support for GitLab issues (drag-and-drop, clipboard paste, file picker)
+- Add: FileUploadArea component with upload progress indicator
+- Info: GitHub repositories show a hint that file upload is not available via API
+
 ## 1.0.2 — 2026-02-18
 
 - Fix: resolve relative image URLs in Markdown rendering (GitLab uploads, project-relative paths)

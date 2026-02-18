@@ -115,7 +115,7 @@
   <section class="comments-section">
     <h2>Comments ({issue.commentCount})</h2>
     <CommentThread comments={issue.comments} {repositoryInfo} />
-    <CommentForm />
+    <CommentForm platform={repositoryInfo?.platform || 'github'} />
   </section>
 </article>
 

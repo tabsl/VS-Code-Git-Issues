@@ -2,7 +2,7 @@
   "name": "vscode-git-issues",
   "displayName": "Git Issues",
   "description": "Manage GitHub and GitLab issues directly from VSCode",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "publisher": "tabsl",
   "license": "MIT",
   "repository": {

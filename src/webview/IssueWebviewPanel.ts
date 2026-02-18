@@ -113,6 +113,12 @@ export class IssueWebviewPanel {
           case 'refresh':
             await this.loadIssue();
             break;
+          case 'uploadFile':
+            await this.handleUploadFile(msg.fileName, msg.fileContentBase64, msg.uploadId);
+            break;
+          case 'pickFile':
+            await this.handlePickFile();
+            break;
         }
       },
       null,
@@ -193,6 +199,76 @@ export class IssueWebviewPanel {
         `Failed to create branch: ${message}`
       );
     }
+  }
+
+  private async handleUploadFile(fileName: string, fileContentBase64: string, uploadId: string): Promise<void> {
+    if (!this.provider.supportsFileUpload() || !this.provider.uploadFile) {
+      this.panel.webview.postMessage({
+        type: 'uploadNotSupported',
+        platform: this.provider.platform,
+      });
+      return;
+    }
+
+    try {
+      this.panel.webview.postMessage({
+        type: 'uploadProgress',
+        uploadId,
+        status: 'uploading',
+      });
+
+      const fileContent = Buffer.from(fileContentBase64, 'base64');
+      const result = await this.provider.uploadFile(fileName, fileContent);
+
+      this.panel.webview.postMessage({
+        type: 'uploadProgress',
+        uploadId,
+        status: 'completed',
+        markdown: result.markdown,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.panel.webview.postMessage({
+        type: 'uploadProgress',
+        uploadId,
+        status: 'failed',
+        message,
+      });
+    }
+  }
+
+  private async handlePickFile(): Promise<void> {
+    if (!this.provider.supportsFileUpload()) {
+      this.panel.webview.postMessage({
+        type: 'uploadNotSupported',
+        platform: this.provider.platform,
+      });
+      return;
+    }
+
+    const uris = await vscode.window.showOpenDialog({
+      canSelectMany: true,
+      filters: {
+        'Images': ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'],
+        'Documents': ['pdf', 'doc', 'docx', 'txt', 'md', 'csv'],
+        'All Files': ['*'],
+      },
+    });
+
+    if (!uris || uris.length === 0) { return; }
+
+    const files = await Promise.all(
+      uris.map(async (uri) => {
+        const content = await vscode.workspace.fs.readFile(uri);
+        const fileName = uri.path.split('/').pop() || 'file';
+        return {
+          fileName,
+          fileContentBase64: Buffer.from(content).toString('base64'),
+        };
+      })
+    );
+
+    this.panel.webview.postMessage({ type: 'filesPicked', files });
   }
 
   private getHtml(): string {

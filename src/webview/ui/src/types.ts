@@ -47,16 +47,21 @@ export type MessageToWebview =
   | { type: 'issueUpdated'; issue: IssueDetail }
   | {
     type: 'operationFailed';
-    operation: 'addComment' | 'updateIssue' | 'createBranch';
+    operation: 'addComment' | 'updateIssue' | 'createBranch' | 'uploadFile';
     message: string;
-  };
+  }
+  | { type: 'uploadProgress'; uploadId: string; status: 'uploading' | 'completed' | 'failed'; markdown?: string; message?: string }
+  | { type: 'filesPicked'; files: Array<{ fileName: string; fileContentBase64: string }> }
+  | { type: 'uploadNotSupported'; platform: string };
 
 export type MessageToExtension =
   | { type: 'addComment'; body: string }
   | { type: 'updateIssue'; data: { title?: string; body?: string; state?: string; labels?: string[]; assignees?: string[] } }
   | { type: 'openInBrowser' }
   | { type: 'createBranch' }
-  | { type: 'refresh' };
+  | { type: 'refresh' }
+  | { type: 'uploadFile'; fileName: string; fileContentBase64: string; uploadId: string }
+  | { type: 'pickFile' };
 
 export interface VsCodeApi {
   postMessage(message: MessageToExtension): void;

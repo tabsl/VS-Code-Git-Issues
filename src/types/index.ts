@@ -68,3 +68,9 @@ export interface RepositoryInfo {
   platform: 'github' | 'gitlab';
   baseUrl: string;
 }
+
+export interface FileUploadResult {
+  markdown: string;
+  url: string;
+  alt: string;
+}
