@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.0.2 — 2026-02-18
+
+- Fix: resolve relative image URLs in Markdown rendering (GitLab uploads, project-relative paths)
+- Add: Makefile with full release pipeline (`make release BUMP=patch|minor|major`)
 
 ## 1.0.1 — 2026-02-16
 

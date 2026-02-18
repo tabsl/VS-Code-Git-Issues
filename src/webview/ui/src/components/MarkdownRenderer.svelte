@@ -1,17 +1,41 @@
 <script lang="ts">
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
+  import type { RepositoryInfo } from '../types';
 
-  let { content }: { content: string } = $props();
+  let { content, repositoryInfo = null }: { content: string; repositoryInfo?: RepositoryInfo | null } = $props();
 
   marked.setOptions({
     breaks: true,
     gfm: true,
   });
 
+  function resolveImageUrl(src: string, repoInfo: RepositoryInfo): string {
+    if (!src) return src;
+    if (/^(https?:)?\/\//.test(src) || src.startsWith('data:')) return src;
+    if (src.startsWith('/')) {
+      // GitLab uploads are project-relative
+      if (src.startsWith('/uploads/')) {
+        return `${repoInfo.baseUrl}/${repoInfo.owner}/${repoInfo.repo}${src}`;
+      }
+      // Other root-relative URLs (e.g. Gitea /attachments/)
+      return `${repoInfo.baseUrl}${src}`;
+    }
+    // Other relative URLs
+    return `${repoInfo.baseUrl}/${repoInfo.owner}/${repoInfo.repo}/raw/branch/main/${src}`;
+  }
+
+  function resolveImageUrls(html: string): string {
+    if (!repositoryInfo) return html;
+    return html.replace(/<img\s+([^>]*?)src=["']([^"']+)["']/gi, (_match, prefix, src) => {
+      const resolved = resolveImageUrl(src, repositoryInfo);
+      return `<img ${prefix}src="${resolved}"`;
+    });
+  }
+
   function render(md: string): string {
     const raw = marked.parse(md) as string;
-    return DOMPurify.sanitize(raw, {
+    const sanitized = DOMPurify.sanitize(raw, {
       ALLOWED_TAGS: [
         'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'ul', 'ol', 'li', 'code', 'pre', 'a', 'img',
@@ -21,6 +45,7 @@
       ],
       ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'type', 'checked', 'disabled', 'target', 'rel'],
     });
+    return resolveImageUrls(sanitized);
   }
 </script>
 

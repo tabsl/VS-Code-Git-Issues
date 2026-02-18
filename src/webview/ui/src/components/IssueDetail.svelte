@@ -72,7 +72,7 @@
   <div class="content-grid">
     <section class="body">
       {#if issue.body}
-        <MarkdownRenderer content={issue.body} />
+        <MarkdownRenderer content={issue.body} {repositoryInfo} />
       {:else}
         <p class="empty">No description provided.</p>
       {/if}
@@ -114,7 +114,7 @@
 
   <section class="comments-section">
     <h2>Comments ({issue.commentCount})</h2>
-    <CommentThread comments={issue.comments} />
+    <CommentThread comments={issue.comments} {repositoryInfo} />
     <CommentForm />
   </section>
 </article>

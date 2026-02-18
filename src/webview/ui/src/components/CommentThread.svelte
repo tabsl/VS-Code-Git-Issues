@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { Comment } from '../types';
+  import type { Comment, RepositoryInfo } from '../types';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
 
-  let { comments }: { comments: Comment[] } = $props();
+  let { comments, repositoryInfo = null }: { comments: Comment[]; repositoryInfo?: RepositoryInfo | null } = $props();
 
   function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString(undefined, {
@@ -29,7 +29,7 @@
         </div>
         <span class="date">{formatDate(comment.createdAt)}</span>
       </div>
-      <div class="comment-body"><MarkdownRenderer content={comment.body} /></div>
+      <div class="comment-body"><MarkdownRenderer content={comment.body} {repositoryInfo} /></div>
     </div>
   {/each}
 
