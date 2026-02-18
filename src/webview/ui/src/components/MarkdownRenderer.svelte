@@ -25,11 +25,44 @@
     return `${repoInfo.baseUrl}/${repoInfo.owner}/${repoInfo.repo}/raw/branch/main/${src}`;
   }
 
+  function resolveLinkUrl(href: string, repoInfo: RepositoryInfo): string {
+    if (!href) return href;
+    if (/^(https?:)?\/\//.test(href) || href.startsWith('mailto:') || href.startsWith('#')) return href;
+    if (href.startsWith('/')) {
+      if (href.startsWith('/uploads/')) {
+        return `${repoInfo.baseUrl}/${repoInfo.owner}/${repoInfo.repo}${href}`;
+      }
+      return `${repoInfo.baseUrl}${href}`;
+    }
+    return href;
+  }
+
   function resolveImageUrls(html: string): string {
     if (!repositoryInfo) return html;
     return html.replace(/<img\s+([^>]*?)src=["']([^"']+)["']/gi, (_match, prefix, src) => {
       const resolved = resolveImageUrl(src, repositoryInfo);
       return `<img ${prefix}src="${resolved}"`;
+    });
+  }
+
+  function resolveLinkUrls(html: string): string {
+    if (!repositoryInfo) return html;
+    return html.replace(/<a\s+([^>]*?)href=["']([^"']+)["']/gi, (_match, prefix, href) => {
+      const resolved = resolveLinkUrl(href, repositoryInfo);
+      return `<a ${prefix}href="${resolved}"`;
+    });
+  }
+
+  function addLinkTargets(html: string): string {
+    return html.replace(/<a\s+([^>]*?)>/gi, (_match, attrs) => {
+      let updated = attrs.trim();
+      if (!/target\s*=/.test(updated)) {
+        updated += ' target="_blank"';
+      }
+      if (!/rel\s*=/.test(updated)) {
+        updated += ' rel="noopener noreferrer"';
+      }
+      return `<a ${updated}>`;
     });
   }
 
@@ -45,7 +78,7 @@
       ],
       ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'type', 'checked', 'disabled', 'target', 'rel'],
     });
-    return resolveImageUrls(sanitized);
+    return addLinkTargets(resolveLinkUrls(resolveImageUrls(sanitized)));
   }
 </script>
 

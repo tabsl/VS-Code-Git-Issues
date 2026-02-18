@@ -24,7 +24,12 @@
   let selectedAssignees = $state<string[]>([]);
   let submitting = $state(false);
   let errorMessage = $state('');
+  let uploadsInProgress = $state(0);
   let initializedForIssue = $state<number | null>(null);
+  let initialTitle = $state('');
+  let initialBody = $state('');
+  let initialLabels = $state<string[]>([]);
+  let initialAssignees = $state<string[]>([]);
 
   $effect(() => {
     if (initializedForIssue === issue.number) {
@@ -35,6 +40,10 @@
     body = issue.body;
     selectedLabels = issue.labels.map((l) => l.name);
     selectedAssignees = issue.assignees.map((a) => a.login);
+    initialTitle = issue.title;
+    initialBody = issue.body;
+    initialLabels = issue.labels.map((l) => l.name);
+    initialAssignees = issue.assignees.map((a) => a.login);
     submitting = false;
     errorMessage = '';
     initializedForIssue = issue.number;
@@ -46,6 +55,8 @@
       if (msg.type === 'operationFailed' && msg.operation === 'updateIssue') {
         submitting = false;
         errorMessage = msg.message;
+      } else if (msg.type === 'editComplete' || msg.type === 'issueLoaded') {
+        submitting = false;
       }
     };
 
@@ -84,19 +95,31 @@
     };
   }
 
+  function sameSet(a: string[], b: string[]): boolean {
+    if (a.length !== b.length) return false;
+    const as = [...a].sort();
+    const bs = [...b].sort();
+    return as.every((value, index) => value === bs[index]);
+  }
+
   function save() {
-    if (!title.trim() || submitting) return;
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle || submitting || uploadsInProgress > 0) return;
+
+    const data: { title?: string; body?: string; labels?: string[]; assignees?: string[] } = {};
+    if (trimmedTitle !== initialTitle) data.title = trimmedTitle;
+    if (body !== initialBody) data.body = body;
+    if (!sameSet(selectedLabels, initialLabels)) data.labels = selectedLabels;
+    if (!sameSet(selectedAssignees, initialAssignees)) data.assignees = selectedAssignees;
+
+    if (Object.keys(data).length === 0) {
+      errorMessage = 'No changes to save.';
+      return;
+    }
+
     submitting = true;
     errorMessage = '';
-    postMessage({
-      type: 'updateIssue',
-      data: {
-        title: title.trim(),
-        body,
-        labels: selectedLabels,
-        assignees: selectedAssignees,
-      },
-    });
+    postMessage({ type: 'updateIssue', data });
   }
 </script>
 
@@ -113,7 +136,13 @@
 
   <div class="field">
     <label for="body">Description</label>
-    <FileUploadArea bind:value={body} placeholder="Issue description..." rows={10} platform={repositoryInfo?.platform || 'github'} />
+    <FileUploadArea
+      bind:value={body}
+      bind:uploading={uploadsInProgress}
+      placeholder="Issue description..."
+      rows={10}
+      platform={repositoryInfo?.platform || 'github'}
+    />
   </div>
 
   <div class="field">
@@ -221,11 +250,14 @@
   </div>
 
   <div class="actions">
-    <button class="btn-primary" onclick={save} disabled={!title.trim() || submitting}>
-      Save
+    <button class="btn-primary" onclick={save} disabled={!title.trim() || submitting || uploadsInProgress > 0}>
+      {submitting ? 'Saving...' : 'Save'}
     </button>
     <button class="btn-secondary" onclick={oncancel}>Cancel</button>
   </div>
+  {#if uploadsInProgress > 0}
+    <div class="hint">Please wait for file uploads to finish before saving.</div>
+  {/if}
   {#if errorMessage}
     <div class="error">{errorMessage}</div>
   {/if}
@@ -458,6 +490,11 @@
 
   .error {
     color: var(--vscode-errorForeground);
+    font-size: 0.85em;
+  }
+
+  .hint {
+    color: var(--vscode-descriptionForeground);
     font-size: 0.85em;
   }
 </style>

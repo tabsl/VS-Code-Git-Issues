@@ -68,7 +68,7 @@ export class IssueWebviewPanel {
     );
   }
 
-  private async loadIssue(): Promise<void> {
+  private async loadIssue(): Promise<boolean> {
     try {
       const issue = await this.provider.getIssue(this.issueNumber);
       const labels = await this.provider.listLabels().catch((err) => {
@@ -87,10 +87,12 @@ export class IssueWebviewPanel {
         assignees,
         repositoryInfo: this.provider.getRepositoryInfo(),
       });
+      return true;
     } catch (err) {
       vscode.window.showErrorMessage(
         `Failed to load issue: ${err instanceof Error ? err.message : err}`
       );
+      return false;
     }
   }
 
@@ -145,12 +147,18 @@ export class IssueWebviewPanel {
   }
 
   private async handleUpdateIssue(data: any): Promise<void> {
+    console.log('[Git Issues] handleUpdateIssue called with data keys:', Object.keys(data));
     try {
-      await this.provider.updateIssue(this.issueNumber, data);
-      vscode.window.showInformationMessage('Issue updated');
-      await this.loadIssue();
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out after 30s')), 30_000)
+      );
+      await Promise.race([
+        this.provider.updateIssue(this.issueNumber, data),
+        timeout,
+      ]);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      console.log('[Git Issues] updateIssue failed:', message);
       this.panel.webview.postMessage({
         type: 'operationFailed',
         operation: 'updateIssue',
@@ -159,7 +167,13 @@ export class IssueWebviewPanel {
       vscode.window.showErrorMessage(
         `Failed to update issue: ${message}`
       );
+      return;
     }
+
+    console.log('[Git Issues] updateIssue succeeded, reloading...');
+    vscode.window.showInformationMessage('Issue updated');
+    this.panel.webview.postMessage({ type: 'editComplete' });
+    await this.loadIssue();
   }
 
   private handleOpenInBrowser(): void {
@@ -257,18 +271,27 @@ export class IssueWebviewPanel {
 
     if (!uris || uris.length === 0) { return; }
 
-    const files = await Promise.all(
-      uris.map(async (uri) => {
-        const content = await vscode.workspace.fs.readFile(uri);
-        const fileName = uri.path.split('/').pop() || 'file';
-        return {
-          fileName,
-          fileContentBase64: Buffer.from(content).toString('base64'),
-        };
-      })
-    );
+    try {
+      const files = await Promise.all(
+        uris.map(async (uri) => {
+          const content = await vscode.workspace.fs.readFile(uri);
+          const fileName = uri.path.split('/').pop() || 'file';
+          return {
+            fileName,
+            fileContentBase64: Buffer.from(content).toString('base64'),
+          };
+        })
+      );
 
-    this.panel.webview.postMessage({ type: 'filesPicked', files });
+      this.panel.webview.postMessage({ type: 'filesPicked', files });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.panel.webview.postMessage({
+        type: 'operationFailed',
+        operation: 'uploadFile',
+        message: `Failed to read file: ${message}`,
+      });
+    }
   }
 
   private getHtml(): string {
@@ -285,7 +308,7 @@ export class IssueWebviewPanel {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https:;">
+    content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https: http:;">
   <title>Issue #${this.issueNumber}</title>
 </head>
 <body>

@@ -110,10 +110,14 @@ export class GitLabProvider implements IssueProvider {
       updateData.stateEvent = data.state === 'closed' ? 'close' : 'reopen';
     }
     if (data.assignees !== undefined) {
-      const members = await this.listAssignees();
-      updateData.assigneeIds = data.assignees
-        .map((login) => members.find((m) => m.login === login)?.id)
-        .filter((id): id is number => id !== undefined);
+      if (data.assignees.length === 0) {
+        updateData.assigneeIds = [];
+      } else {
+        const members = await this.listAssignees();
+        updateData.assigneeIds = data.assignees
+          .map((login: string) => members.find((m) => m.login === login)?.id)
+          .filter((id: number | undefined): id is number => id !== undefined);
+      }
     }
 
     const issue = await this.gitlab.Issues.edit(this.projectPath, issueNumber, updateData);
@@ -164,7 +168,7 @@ export class GitLabProvider implements IssueProvider {
   }
 
   async uploadFile(fileName: string, fileContent: Buffer): Promise<FileUploadResult> {
-    const result = await (this.gitlab.Projects as any).upload(
+    const result = await this.gitlab.Projects.uploadForReference(
       this.projectPath,
       { content: new Blob([fileContent]), filename: fileName }
     );

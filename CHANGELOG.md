@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.2 — 2026-02-18
+
+- Fix: unassigning all assignees from GitLab issues now works correctly
+- Fix: use proper `uploadForReference` API instead of untyped cast for GitLab file uploads
+- Fix: issue update has 30s timeout to prevent indefinite hanging
+- Fix: file picker errors are now caught and reported to the webview
+- Fix: edit mode exits gracefully when issue reload fails after update
+- UI: Save button shows "Saving..." feedback while submitting
+
 ## 1.1.1 — 2026-02-18
 
 - Fix: file picker dialog now defaults to "All Files" filter so all file types are selectable

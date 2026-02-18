@@ -10,16 +10,17 @@
     placeholder = '',
     rows = 3,
     platform = 'github',
+    uploading = $bindable(0),
   }: {
     value: string;
     placeholder?: string;
     rows?: number;
     platform?: 'github' | 'gitlab';
+    uploading?: number;
   } = $props();
 
   let textareaEl: HTMLTextAreaElement;
   let dragging = $state(false);
-  let uploading = $state(0);
   let errorMsg = $state('');
 
   const supportsUpload = $derived(platform === 'gitlab');

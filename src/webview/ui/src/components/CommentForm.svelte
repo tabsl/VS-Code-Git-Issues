@@ -9,6 +9,7 @@
   let body = $state('');
   let submitting = $state(false);
   let errorMessage = $state('');
+  let uploadsInProgress = $state(0);
 
   onMount(() => {
     const handleMessage = (event: MessageEvent<MessageToWebview>) => {
@@ -41,10 +42,13 @@
 </script>
 
 <div class="comment-form">
-  <FileUploadArea bind:value={body} placeholder="Write a comment..." rows={3} {platform} />
-  <button class="btn-primary" onclick={submit} disabled={!body.trim() || submitting}>
+  <FileUploadArea bind:value={body} bind:uploading={uploadsInProgress} placeholder="Write a comment..." rows={3} {platform} />
+  <button class="btn-primary" onclick={submit} disabled={!body.trim() || submitting || uploadsInProgress > 0}>
     Comment
   </button>
+  {#if uploadsInProgress > 0}
+    <div class="hint">Please wait for file uploads to finish before commenting.</div>
+  {/if}
   {#if errorMessage}
     <div class="error">{errorMessage}</div>
   {/if}
@@ -82,6 +86,11 @@
 
   .error {
     color: var(--vscode-errorForeground);
+    font-size: 0.85em;
+  }
+
+  .hint {
+    color: var(--vscode-descriptionForeground);
     font-size: 0.85em;
   }
 </style>

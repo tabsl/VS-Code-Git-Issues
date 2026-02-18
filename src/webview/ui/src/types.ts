@@ -45,6 +45,7 @@ export type MessageToWebview =
   | { type: 'issueLoaded'; issue: IssueDetail; labels: Label[]; assignees: User[]; repositoryInfo: RepositoryInfo }
   | { type: 'commentAdded'; comment: Comment }
   | { type: 'issueUpdated'; issue: IssueDetail }
+  | { type: 'editComplete' }
   | {
     type: 'operationFailed';
     operation: 'addComment' | 'updateIssue' | 'createBranch' | 'uploadFile';

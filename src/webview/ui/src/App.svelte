@@ -32,6 +32,9 @@
         issue = msg.issue;
         editing = false;
         break;
+      case 'editComplete':
+        editing = false;
+        break;
     }
   });
 
