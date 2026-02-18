@@ -249,9 +249,9 @@ export class IssueWebviewPanel {
     const uris = await vscode.window.showOpenDialog({
       canSelectMany: true,
       filters: {
+        'All Files': ['*'],
         'Images': ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'],
         'Documents': ['pdf', 'doc', 'docx', 'txt', 'md', 'csv'],
-        'All Files': ['*'],
       },
     });
 

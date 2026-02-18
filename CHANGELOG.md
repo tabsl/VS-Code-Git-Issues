@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1 — 2026-02-18
+
+- Fix: file picker dialog now defaults to "All Files" filter so all file types are selectable
+
 ## 1.1.0 — 2026-02-18
 
 - Add: file upload support for GitLab issues (drag-and-drop, clipboard paste, file picker)
