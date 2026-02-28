@@ -53,7 +53,9 @@ export type MessageToWebview =
   }
   | { type: 'uploadProgress'; uploadId: string; status: 'uploading' | 'completed' | 'failed'; markdown?: string; message?: string }
   | { type: 'filesPicked'; files: Array<{ fileName: string; fileContentBase64: string }> }
-  | { type: 'uploadNotSupported'; platform: string };
+  | { type: 'uploadNotSupported'; platform: string }
+  | { type: 'imageProxied'; requestId: string; dataUri: string }
+  | { type: 'imageProxyFailed'; requestId: string; imageUrl: string };
 
 export type MessageToExtension =
   | { type: 'addComment'; body: string }
@@ -62,7 +64,8 @@ export type MessageToExtension =
   | { type: 'createBranch' }
   | { type: 'refresh' }
   | { type: 'uploadFile'; fileName: string; fileContentBase64: string; uploadId: string }
-  | { type: 'pickFile' };
+  | { type: 'pickFile' }
+  | { type: 'proxyImage'; requestId: string; imageUrl: string };
 
 export interface VsCodeApi {
   postMessage(message: MessageToExtension): void;

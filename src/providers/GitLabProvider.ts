@@ -21,7 +21,7 @@ export class GitLabProvider implements IssueProvider {
   constructor(
     private owner: string,
     private repo: string,
-    token: string,
+    private token: string,
     private baseUrl: string = 'https://gitlab.com'
   ) {
     this.projectPath = `${owner}/${repo}`;
@@ -177,6 +177,36 @@ export class GitLabProvider implements IssueProvider {
       url: result.url,
       alt: result.alt,
     };
+  }
+
+  async fetchImage(imageUrl: string): Promise<string> {
+    if (!imageUrl.startsWith(this.baseUrl)) {
+      throw new Error('Image URL does not match the GitLab base URL');
+    }
+
+    // Extract upload hash and filename from URL like:
+    // https://host/owner/repo/-/uploads/{hash}/{filename}
+    const uploadMatch = imageUrl.match(/\/-\/uploads\/([^/]+)\/(.+?)(?:\?|$)/);
+    if (!uploadMatch) {
+      throw new Error('Could not parse upload URL: ' + imageUrl);
+    }
+
+    const [, hash, filename] = uploadMatch;
+    const encodedProject = encodeURIComponent(this.projectPath);
+    const apiUrl = `${this.baseUrl}/api/v4/projects/${encodedProject}/uploads/${hash}/${filename}`;
+
+    const response = await fetch(apiUrl, {
+      headers: { 'PRIVATE-TOKEN': this.token },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get('content-type') || 'image/png';
+    const buffer = await response.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+    return `data:${contentType};base64,${base64}`;
   }
 
   getIssueUrl(issueNumber: number): string {

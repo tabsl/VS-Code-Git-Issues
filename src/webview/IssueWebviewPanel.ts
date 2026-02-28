@@ -121,6 +121,9 @@ export class IssueWebviewPanel {
           case 'pickFile':
             await this.handlePickFile();
             break;
+          case 'proxyImage':
+            await this.handleProxyImage(msg.requestId, msg.imageUrl);
+            break;
         }
       },
       null,
@@ -294,6 +297,21 @@ export class IssueWebviewPanel {
     }
   }
 
+  private async handleProxyImage(requestId: string, imageUrl: string): Promise<void> {
+    if (!this.provider.fetchImage) {
+      this.panel.webview.postMessage({ type: 'imageProxyFailed', requestId, imageUrl });
+      return;
+    }
+
+    try {
+      const dataUri = await this.provider.fetchImage(imageUrl);
+      this.panel.webview.postMessage({ type: 'imageProxied', requestId, dataUri });
+    } catch (err) {
+      console.warn('[Git Issues] Image proxy failed:', imageUrl, err);
+      this.panel.webview.postMessage({ type: 'imageProxyFailed', requestId, imageUrl });
+    }
+  }
+
   private getHtml(): string {
     const webview = this.panel.webview;
     const nonce = getNonce();
@@ -308,7 +326,7 @@ export class IssueWebviewPanel {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https: http:;">
+    content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https: http: data:;">
   <title>Issue #${this.issueNumber}</title>
 </head>
 <body>

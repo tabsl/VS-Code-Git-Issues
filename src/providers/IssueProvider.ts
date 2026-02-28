@@ -39,6 +39,9 @@ export interface IssueProvider {
   supportsFileUpload(): boolean;
   uploadFile?(fileName: string, fileContent: Buffer): Promise<FileUploadResult>;
 
+  // Image proxy
+  fetchImage?(imageUrl: string): Promise<string>;
+
   // Utility
   getIssueUrl(issueNumber: number): string;
   getRepositoryInfo(): RepositoryInfo;

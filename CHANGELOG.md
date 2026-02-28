@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.3 — 2026-02-28
+
+- Fix: display images from private GitLab repos by proxying uploads through the GitLab API
+- Fix: correct GitLab upload URL resolution (add `/-/` prefix)
+- Add: `data:` URI support in Content Security Policy for proxied images
+
 ## 1.1.2 — 2026-02-18
 
 - Fix: unassigning all assignees from GitLab issues now works correctly

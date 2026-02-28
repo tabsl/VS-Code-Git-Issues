@@ -1,9 +1,14 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
-  import type { RepositoryInfo } from '../types';
+  import type { RepositoryInfo, MessageToWebview } from '../types';
+  import { postMessage } from '../stores/vscodeApi';
 
   let { content, repositoryInfo = null }: { content: string; repositoryInfo?: RepositoryInfo | null } = $props();
+
+  let container: HTMLDivElement;
+  const pendingProxies = new Map<string, HTMLImageElement>();
 
   marked.setOptions({
     breaks: true,
@@ -14,9 +19,10 @@
     if (!src) return src;
     if (/^(https?:)?\/\//.test(src) || src.startsWith('data:')) return src;
     if (src.startsWith('/')) {
-      // GitLab uploads are project-relative
+      // GitLab uploads are project-relative and need /-/ prefix
       if (src.startsWith('/uploads/')) {
-        return `${repoInfo.baseUrl}/${repoInfo.owner}/${repoInfo.repo}${src}`;
+        const prefix = repoInfo.platform === 'gitlab' ? '/-' : '';
+        return `${repoInfo.baseUrl}/${repoInfo.owner}/${repoInfo.repo}${prefix}${src}`;
       }
       // Other root-relative URLs (e.g. Gitea /attachments/)
       return `${repoInfo.baseUrl}${src}`;
@@ -30,7 +36,8 @@
     if (/^(https?:)?\/\//.test(href) || href.startsWith('mailto:') || href.startsWith('#')) return href;
     if (href.startsWith('/')) {
       if (href.startsWith('/uploads/')) {
-        return `${repoInfo.baseUrl}/${repoInfo.owner}/${repoInfo.repo}${href}`;
+        const prefix = repoInfo.platform === 'gitlab' ? '/-' : '';
+        return `${repoInfo.baseUrl}/${repoInfo.owner}/${repoInfo.repo}${prefix}${href}`;
       }
       return `${repoInfo.baseUrl}${href}`;
     }
@@ -80,9 +87,62 @@
     });
     return addLinkTargets(resolveLinkUrls(resolveImageUrls(sanitized)));
   }
+
+  function needsProxy(src: string): boolean {
+    if (!repositoryInfo || repositoryInfo.platform !== 'gitlab') return false;
+    if (src.startsWith('data:')) return false;
+    return src.startsWith(repositoryInfo.baseUrl) && src.includes('/uploads/');
+  }
+
+  function proxyImages(): void {
+    if (!container) return;
+    const images = container.querySelectorAll<HTMLImageElement>('img');
+    for (const img of images) {
+      const src = img.getAttribute('src') || '';
+      if (needsProxy(src) && !img.dataset.proxyRequested) {
+        const requestId = crypto.randomUUID();
+        img.dataset.proxyRequested = requestId;
+        img.style.opacity = '0.3';
+        pendingProxies.set(requestId, img);
+        postMessage({ type: 'proxyImage', requestId, imageUrl: src });
+      }
+    }
+  }
+
+  onMount(() => {
+    const handleMessage = (event: MessageEvent<MessageToWebview>) => {
+      const msg = event.data;
+      if (msg.type === 'imageProxied') {
+        const img = pendingProxies.get(msg.requestId);
+        if (img) {
+          img.src = msg.dataUri;
+          img.style.opacity = '';
+          pendingProxies.delete(msg.requestId);
+        }
+      } else if (msg.type === 'imageProxyFailed') {
+        const img = pendingProxies.get(msg.requestId);
+        if (img) {
+          img.style.opacity = '';
+          pendingProxies.delete(msg.requestId);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      pendingProxies.clear();
+    };
+  });
+
+  $effect(() => {
+    void content;
+    void repositoryInfo;
+    proxyImages();
+  });
 </script>
 
-<div class="markdown-body">
+<div class="markdown-body" bind:this={container}>
   {@html render(content)}
 </div>
 
