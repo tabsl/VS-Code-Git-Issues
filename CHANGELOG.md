@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.2 — 2026-04-26
+
+- Fix: smarter default repository selection in monorepos with several nested repos. The active repo is now picked by priority: (1) previously chosen repo persisted via Quick Pick, (2) keep current selection if still valid, (3) repo containing the file in the active editor, (4) avoid worktrees as a default, (5) fallback to first detected.
+- Fix: selection no longer bounces as VS Code progressively discovers nested repos — once a valid active repo exists, re-init keeps it.
+- Add: when no repo is pinned via Quick Pick, the active editor's repo is automatically selected on editor switches (multi-repo workspaces only). Pinning via `Git Issues: Select Repository` disables auto-follow.
+
+## 1.2.1 — 2026-04-26
+
+- Fix: detect git repos nested inside workspace folders (e.g. monorepos where the workspace root is a parent folder containing several sibling repos). Uses VS Code's built-in Git extension API as the primary source so that all repos VS Code itself sees are picked up; the workspace-folder scan stays as fallback.
+- Fix: re-initialize automatically when a nested repo opens or closes (`onDidOpenRepository` / `onDidCloseRepository`) so the issues view appears as soon as VS Code finishes discovering nested git roots.
+- UI: more accurate "no remote" message (covers both workspace folder and nested repositories).
+
+## 1.2.0 — 2026-04-26
+
+- Add: multi-root workspace support — scans all workspace folders for git repos with `origin` remote instead of only the first folder
+- Add: `Git Issues: Select Repository` command (Quick Pick) to switch between repos when several are detected
+- Add: tree view header shows active `owner/repo` when multiple repos are present; selection is persisted per workspace
+- Fix: `Create Branch from Issue` now operates on the active repository instead of always `workspaceFolders[0]`
+
 ## 1.1.3 — 2026-02-28
 
 - Fix: display images from private GitLab repos by proxying uploads through the GitLab API

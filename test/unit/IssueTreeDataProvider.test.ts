@@ -59,7 +59,9 @@ describe('IssueTreeDataProvider', () => {
       tdp.setState('no-remote');
       const children = tdp.getChildren();
       expect(children).toHaveLength(1);
-      expect((children[0] as MessageTreeItem).label).toBe('No git remote "origin" found');
+      expect((children[0] as MessageTreeItem).label).toBe(
+        'No git remote "origin" found in workspace folder or any nested repository'
+      );
     });
 
     it('shows configure token message for GitHub', () => {

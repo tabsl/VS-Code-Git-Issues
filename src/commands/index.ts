@@ -3,6 +3,8 @@ import type { Configuration } from '../config/Configuration';
 import type { IssueProvider } from '../providers/IssueProvider';
 import type { IssueTreeDataProvider } from '../tree/IssueTreeDataProvider';
 import type { IssueTreeItem } from '../tree/IssueTreeItem';
+import type { DetectedRepository } from '../git/RepositoryResolver';
+import { RepositoryResolver } from '../git/RepositoryResolver';
 import { GitOperations } from '../git/GitOperations';
 
 export function registerCommands(
@@ -10,7 +12,8 @@ export function registerCommands(
   config: Configuration,
   treeDataProvider: IssueTreeDataProvider,
   getProvider: () => IssueProvider | null,
-  reinitializeProvider: () => Promise<void>
+  getActiveRepository: () => DetectedRepository | null,
+  reinitializeProvider: (folderPath?: string) => Promise<void>
 ): void {
   // Refresh
   context.subscriptions.push(
@@ -132,8 +135,10 @@ export function registerCommands(
     vscode.commands.registerCommand('gitIssues.createBranchFromIssue', async (item: IssueTreeItem) => {
       if (!item?.issue) { return; }
 
-      const folder = vscode.workspace.workspaceFolders?.[0];
-      if (!folder) {
+      const repo = getActiveRepository();
+      const folderPath = repo?.rootPath
+        ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!folderPath) {
         vscode.window.showErrorMessage('No workspace folder found');
         return;
       }
@@ -148,13 +153,43 @@ export function registerCommands(
       if (!branchName) { return; }
 
       try {
-        GitOperations.createBranch(folder.uri.fsPath, branchName);
+        GitOperations.createBranch(folderPath, branchName);
         vscode.window.showInformationMessage(`Switched to new branch: ${branchName}`);
       } catch (err) {
         vscode.window.showErrorMessage(
           `Failed to create branch: ${err instanceof Error ? err.message : err}`
         );
       }
+    })
+  );
+
+  // Select Repository (only meaningful in multi-root workspaces)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitIssues.selectRepository', async () => {
+      // Re-detect to pick up any newly added repos
+      const detected = await RepositoryResolver.detectAll();
+      if (detected.length === 0) {
+        vscode.window.showInformationMessage(
+          'Git Issues: No git repositories with an "origin" remote found in workspace'
+        );
+        return;
+      }
+
+      const active = getActiveRepository();
+      const items = detected.map(d => ({
+        label: `${d.remote.owner}/${d.remote.repo}`,
+        description: d.displayName,
+        detail: d.rootPath,
+        picked: active?.rootPath === d.rootPath,
+        folderPath: d.rootPath,
+      }));
+
+      const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select repository for Git Issues',
+      });
+      if (!picked) { return; }
+
+      await reinitializeProvider(picked.folderPath);
     })
   );
 
@@ -191,4 +226,5 @@ export function registerCommands(
       }
     })
   );
+
 }

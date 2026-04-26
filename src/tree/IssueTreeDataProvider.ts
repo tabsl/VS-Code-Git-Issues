@@ -115,8 +115,13 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
       case 'no-workspace':
         return [new MessageTreeItem('Open a folder to get started')];
 
-      case 'no-remote':
-        return [new MessageTreeItem('No git remote "origin" found')];
+      case 'no-remote': {
+        const folderCount = vscode.workspace.workspaceFolders?.length ?? 0;
+        const message = folderCount > 1
+          ? `No git remote "origin" found in any workspace folder or nested repository (${folderCount} folders scanned)`
+          : 'No git remote "origin" found in workspace folder or any nested repository';
+        return [new MessageTreeItem(message)];
+      }
 
       case 'no-token':
         return [

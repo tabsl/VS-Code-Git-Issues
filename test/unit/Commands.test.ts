@@ -70,17 +70,18 @@ describe('registerCommands', () => {
       }
     );
 
-    registerCommands(ctx, config, tdp as any, () => provider, reinitializeProvider);
+    registerCommands(ctx, config, tdp as any, () => provider, () => null, reinitializeProvider);
   });
 
-  it('registers all 8 commands', () => {
-    expect(registeredCommands.size).toBe(8);
+  it('registers all 9 commands', () => {
+    expect(registeredCommands.size).toBe(9);
     expect(registeredCommands.has('gitIssues.refresh')).toBe(true);
     expect(registeredCommands.has('gitIssues.openIssue')).toBe(true);
     expect(registeredCommands.has('gitIssues.createIssue')).toBe(true);
     expect(registeredCommands.has('gitIssues.filter')).toBe(true);
     expect(registeredCommands.has('gitIssues.openInBrowser')).toBe(true);
     expect(registeredCommands.has('gitIssues.createBranchFromIssue')).toBe(true);
+    expect(registeredCommands.has('gitIssues.selectRepository')).toBe(true);
     expect(registeredCommands.has('gitIssues.configureGitHubToken')).toBe(true);
     expect(registeredCommands.has('gitIssues.configureGitLabToken')).toBe(true);
   });
@@ -115,7 +116,7 @@ describe('registerCommands', () => {
     });
 
     it('shows error when no provider', async () => {
-      registerCommands(ctx, config, tdp as any, () => null, reinitializeProvider);
+      registerCommands(ctx, config, tdp as any, () => null, () => null, reinitializeProvider);
       const cmd = registeredCommands.get('gitIssues.createIssue')!;
       await cmd();
       expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
