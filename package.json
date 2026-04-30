@@ -151,7 +151,8 @@
         "gitIssues.gitlab.url": {
           "type": "string",
           "default": "https://gitlab.com",
-          "description": "GitLab instance URL (for self-hosted instances)"
+          "scope": "machine",
+          "description": "GitLab instance URL (for self-hosted instances). Machine-scoped: workspace overrides are intentionally disabled to prevent token leaks from cloned repositories that ship a malicious .vscode/settings.json."
         },
         "gitIssues.defaultState": {
           "type": "string",
