@@ -1,14 +1,12 @@
 import * as vscode from 'vscode';
+import { randomBytes } from 'crypto';
 import type { IssueProvider } from '../providers/IssueProvider';
 import { GitOperations } from '../git/GitOperations';
 
 function getNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let nonce = '';
-  for (let i = 0; i < 32; i++) {
-    nonce += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return nonce;
+  // CSP nonces must be unpredictable to a third party. Math.random is not
+  // cryptographically secure; use the platform CSPRNG instead.
+  return randomBytes(24).toString('base64');
 }
 
 export class IssueWebviewPanel {
