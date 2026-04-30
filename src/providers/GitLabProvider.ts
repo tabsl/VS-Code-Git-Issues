@@ -180,20 +180,39 @@ export class GitLabProvider implements IssueProvider {
   }
 
   async fetchImage(imageUrl: string): Promise<string> {
-    if (!imageUrl.startsWith(this.baseUrl)) {
+    let parsed: URL;
+    let expected: URL;
+    try {
+      parsed = new URL(imageUrl);
+      expected = new URL(this.baseUrl);
+    } catch {
+      throw new Error('Invalid image URL');
+    }
+    // Strict origin match — startsWith would accept e.g. "gitlab.com.attacker"
+    // when the configured base URL is "https://gitlab.com".
+    if (parsed.protocol !== expected.protocol || parsed.host !== expected.host) {
       throw new Error('Image URL does not match the GitLab base URL');
     }
 
     // Extract upload hash and filename from URL like:
     // https://host/owner/repo/-/uploads/{hash}/{filename}
-    const uploadMatch = imageUrl.match(/\/-\/uploads\/([^/]+)\/(.+?)(?:\?|$)/);
+    // Only allow safe hash/filename — reject path traversal and slashes via
+    // URL-encoding so the resulting API URL cannot be redirected to other
+    // GitLab API endpoints with the user's token.
+    const uploadMatch = parsed.pathname.match(/\/-\/uploads\/([^/]+)\/([^/]+)$/);
     if (!uploadMatch) {
       throw new Error('Could not parse upload URL: ' + imageUrl);
     }
 
     const [, hash, filename] = uploadMatch;
+    if (hash.includes('..') || filename.includes('..') || /%2f/i.test(hash) || /%2f/i.test(filename)) {
+      throw new Error('Upload path contains forbidden traversal sequences');
+    }
+
     const encodedProject = encodeURIComponent(this.projectPath);
-    const apiUrl = `${this.baseUrl}/api/v4/projects/${encodedProject}/uploads/${hash}/${filename}`;
+    const safeHash = encodeURIComponent(hash);
+    const safeFilename = encodeURIComponent(filename);
+    const apiUrl = `${this.baseUrl}/api/v4/projects/${encodedProject}/uploads/${safeHash}/${safeFilename}`;
 
     const response = await fetch(apiUrl, {
       headers: { 'PRIVATE-TOKEN': this.token },

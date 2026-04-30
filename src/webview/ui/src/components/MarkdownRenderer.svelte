@@ -91,7 +91,20 @@
   function needsProxy(src: string): boolean {
     if (!repositoryInfo || repositoryInfo.platform !== 'gitlab') return false;
     if (src.startsWith('data:')) return false;
-    return src.startsWith(repositoryInfo.baseUrl) && src.includes('/uploads/');
+    // Strict origin match — startsWith would accept e.g. "gitlab.com.attacker"
+    // when the configured base URL is "https://gitlab.com".
+    let parsed: URL;
+    let expected: URL;
+    try {
+      parsed = new URL(src);
+      expected = new URL(repositoryInfo.baseUrl);
+    } catch {
+      return false;
+    }
+    if (parsed.protocol !== expected.protocol || parsed.host !== expected.host) {
+      return false;
+    }
+    return parsed.pathname.includes('/uploads/');
   }
 
   function proxyImages(): void {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GitLabProvider } from '../../src/providers/GitLabProvider';
 
 // Mock @gitbeaker/rest
@@ -223,6 +223,68 @@ describe('GitLabProvider', () => {
         platform: 'gitlab',
         baseUrl: 'https://gitlab.com',
       });
+    });
+  });
+
+  describe('fetchImage', () => {
+    let provider: GitLabProvider;
+    const originalFetch = globalThis.fetch;
+
+    beforeEach(() => {
+      provider = new GitLabProvider('mygroup', 'myproject', 'glpat-x', 'https://gitlab.com');
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+
+    function mockFetchOnce(body: ArrayBuffer, contentType = 'image/png') {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        headers: { get: () => contentType },
+        arrayBuffer: async () => body,
+      }) as any;
+    }
+
+    it('rejects URLs from look-alike hosts (startsWith bypass)', async () => {
+      await expect(
+        provider.fetchImage('https://gitlab.com.attacker.example/-/uploads/h/f.png')
+      ).rejects.toThrow('Image URL does not match the GitLab base URL');
+    });
+
+    it('rejects URLs with a different protocol', async () => {
+      await expect(
+        provider.fetchImage('http://gitlab.com/-/uploads/h/f.png')
+      ).rejects.toThrow('Image URL does not match the GitLab base URL');
+    });
+
+    it('rejects upload paths with traversal sequences', async () => {
+      await expect(
+        provider.fetchImage('https://gitlab.com/-/uploads/abc/..%2Fnotifications')
+      ).rejects.toThrow();
+    });
+
+    it('rejects URLs that are not valid /-/uploads/{hash}/{file} paths', async () => {
+      await expect(
+        provider.fetchImage('https://gitlab.com/some/random/path')
+      ).rejects.toThrow('Could not parse upload URL');
+    });
+
+    it('proxies a valid upload URL to the GitLab API with the token', async () => {
+      mockFetchOnce(new TextEncoder().encode('PNGDATA').buffer);
+
+      const result = await provider.fetchImage(
+        'https://gitlab.com/mygroup/myproject/-/uploads/abc123/screenshot.png'
+      );
+
+      expect(result.startsWith('data:image/png;base64,')).toBe(true);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const calledUrl = (globalThis.fetch as any).mock.calls[0][0] as string;
+      expect(calledUrl).toBe(
+        'https://gitlab.com/api/v4/projects/mygroup%2Fmyproject/uploads/abc123/screenshot.png'
+      );
+      const calledOpts = (globalThis.fetch as any).mock.calls[0][1];
+      expect(calledOpts.headers['PRIVATE-TOKEN']).toBe('glpat-x');
     });
   });
 });
