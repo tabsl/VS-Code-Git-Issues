@@ -4,6 +4,7 @@ import { registerCommands } from '../../src/commands';
 import type { Configuration } from '../../src/config/Configuration';
 import type { IssueTreeDataProvider } from '../../src/tree/IssueTreeDataProvider';
 import type { IssueProvider } from '../../src/providers/IssueProvider';
+import { __resetConfigStores } from './__mocks__/vscode';
 
 function createMockContext(): vscode.ExtensionContext {
   return {
@@ -17,6 +18,11 @@ function createMockConfig(): Configuration {
   return {
     setGitHubToken: vi.fn(),
     setGitLabToken: vi.fn(),
+    removeGitLabToken: vi.fn(),
+    listGitLabTokenHosts: vi.fn().mockResolvedValue([]),
+    hasLegacyGitLabToken: vi.fn().mockResolvedValue(false),
+    removeLegacyGitLabToken: vi.fn().mockResolvedValue({ configCleanupFailed: false }),
+    getGitLabUrl: vi.fn().mockReturnValue('https://gitlab.com'),
   } as unknown as Configuration;
 }
 
@@ -56,6 +62,7 @@ describe('registerCommands', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    __resetConfigStores();
     ctx = createMockContext();
     config = createMockConfig();
     tdp = createMockTreeDataProvider();
@@ -73,8 +80,8 @@ describe('registerCommands', () => {
     registerCommands(ctx, config, tdp as any, () => provider, () => null, reinitializeProvider);
   });
 
-  it('registers all 9 commands', () => {
-    expect(registeredCommands.size).toBe(9);
+  it('registers all 10 commands', () => {
+    expect(registeredCommands.size).toBe(10);
     expect(registeredCommands.has('gitIssues.refresh')).toBe(true);
     expect(registeredCommands.has('gitIssues.openIssue')).toBe(true);
     expect(registeredCommands.has('gitIssues.createIssue')).toBe(true);
@@ -84,6 +91,7 @@ describe('registerCommands', () => {
     expect(registeredCommands.has('gitIssues.selectRepository')).toBe(true);
     expect(registeredCommands.has('gitIssues.configureGitHubToken')).toBe(true);
     expect(registeredCommands.has('gitIssues.configureGitLabToken')).toBe(true);
+    expect(registeredCommands.has('gitIssues.manageGitLabTokens')).toBe(true);
   });
 
   describe('refresh', () => {
@@ -158,12 +166,67 @@ describe('registerCommands', () => {
   });
 
   describe('configureGitLabToken', () => {
-    it('saves token and reinitializes', async () => {
-      (vscode.window.showInputBox as any).mockResolvedValue('glpat-test');
+    it('saves token for the prompted host and reinitializes', async () => {
+      (vscode.window.showInputBox as any)
+        .mockResolvedValueOnce('gitlab.example.com')
+        .mockResolvedValueOnce('glpat-test');
 
       await registeredCommands.get('gitIssues.configureGitLabToken')!();
 
-      expect(config.setGitLabToken).toHaveBeenCalledWith('glpat-test');
+      expect(config.setGitLabToken).toHaveBeenCalledWith('glpat-test', 'gitlab.example.com');
+      expect(reinitializeProvider).toHaveBeenCalled();
+    });
+
+    it('does nothing when host prompt is cancelled', async () => {
+      (vscode.window.showInputBox as any).mockResolvedValueOnce(undefined);
+
+      await registeredCommands.get('gitIssues.configureGitLabToken')!();
+      expect(config.setGitLabToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('manageGitLabTokens', () => {
+    it('shows info when no tokens are configured', async () => {
+      (config.listGitLabTokenHosts as any).mockResolvedValue([]);
+
+      await registeredCommands.get('gitIssues.manageGitLabTokens')!();
+
+      expect(vscode.window.showInformationMessage).toHaveBeenCalled();
+      expect(config.removeGitLabToken).not.toHaveBeenCalled();
+    });
+
+    it('removes the picked host after confirmation', async () => {
+      (config.listGitLabTokenHosts as any).mockResolvedValue([
+        'gitlab.com',
+        'gitlab.example.com',
+      ]);
+      (vscode.window.showQuickPick as any).mockResolvedValue({
+        label: 'gitlab.example.com',
+        host: 'gitlab.example.com',
+        isLegacy: false,
+      });
+      (vscode.window.showWarningMessage as any) = vi.fn().mockResolvedValue('Remove');
+
+      await registeredCommands.get('gitIssues.manageGitLabTokens')!();
+
+      expect(config.removeGitLabToken).toHaveBeenCalledWith('gitlab.example.com');
+      expect(reinitializeProvider).toHaveBeenCalled();
+    });
+
+    it('offers and removes the legacy fallback token', async () => {
+      (config.listGitLabTokenHosts as any).mockResolvedValue([]);
+      (config.hasLegacyGitLabToken as any).mockResolvedValue(true);
+      (vscode.window.showQuickPick as any).mockResolvedValue({
+        label: '$(history) Legacy default token',
+        host: '',
+        isLegacy: true,
+      });
+      (vscode.window.showWarningMessage as any) = vi.fn().mockResolvedValue('Remove');
+
+      await registeredCommands.get('gitIssues.manageGitLabTokens')!();
+
+      expect(config.removeLegacyGitLabToken).toHaveBeenCalled();
+      expect(config.removeGitLabToken).not.toHaveBeenCalled();
       expect(reinitializeProvider).toHaveBeenCalled();
     });
   });

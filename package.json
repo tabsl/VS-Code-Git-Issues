@@ -2,7 +2,7 @@
   "name": "vscode-git-issues",
   "displayName": "Git Issues",
   "description": "Manage GitHub and GitLab issues directly from VSCode",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "publisher": "tabsl",
   "license": "MIT",
   "repository": {
@@ -101,6 +101,11 @@
       {
         "command": "gitIssues.configureGitLabToken",
         "title": "Configure GitLab Token",
+        "category": "Git Issues"
+      },
+      {
+        "command": "gitIssues.manageGitLabTokens",
+        "title": "Manage GitLab Tokens",
         "category": "Git Issues"
       }
     ],

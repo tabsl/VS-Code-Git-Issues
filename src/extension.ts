@@ -197,7 +197,7 @@ async function initProvider(
   try {
     const result = await ProviderFactory.create(selected.rootPath, {
       githubToken: await config.getGitHubToken(),
-      gitlabToken: await config.getGitLabToken(),
+      getGitLabToken: (host) => config.getGitLabToken(host),
       gitlabUrl: config.getGitLabUrl(),
     });
 

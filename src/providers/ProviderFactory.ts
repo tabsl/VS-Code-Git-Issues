@@ -5,7 +5,7 @@ import type { IssueProvider } from './IssueProvider';
 
 export interface ProviderConfig {
   githubToken: string;
-  gitlabToken: string;
+  getGitLabToken: (host: string) => Promise<string>;
   gitlabUrl: string;
 }
 
@@ -40,14 +40,16 @@ export class ProviderFactory {
       }
       provider = new GitHubProvider(remote.owner, remote.repo, config.githubToken);
     } else {
-      if (!config.gitlabToken) {
+      const baseUrl = this.resolveGitLabBaseUrl(remote.host, config.gitlabUrl);
+      const tokenHost = this.hostFromBaseUrl(baseUrl) ?? remote.host;
+      const token = await config.getGitLabToken(tokenHost);
+      if (!token) {
         return { provider: null, remote, reason: 'no-token' };
       }
-      const baseUrl = this.resolveGitLabBaseUrl(remote.host, config.gitlabUrl);
       provider = new GitLabProvider(
         remote.owner,
         remote.repo,
-        config.gitlabToken,
+        token,
         baseUrl
       );
     }
@@ -75,5 +77,13 @@ export class ProviderFactory {
       ? trimmed
       : `https://${trimmed}`;
     return withProtocol.replace(/\/+$/, '');
+  }
+
+  private static hostFromBaseUrl(baseUrl: string): string | null {
+    try {
+      return new URL(baseUrl).host.toLowerCase();
+    } catch {
+      return null;
+    }
   }
 }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 — 2026-04-30
+
+- Add: multiple GitLab Personal Access Tokens — one per host (e.g. `gitlab.com` plus self-hosted `gitlab.example.com`). The right token is picked automatically based on the repo's git remote.
+- Add: `Git Issues: Configure GitLab Token` now asks for the host first (pre-filled with the active repo's remote host) and stores the token under a host-specific secret key.
+- Add: `Git Issues: Manage GitLab Tokens` command lists configured hosts and lets you remove tokens individually.
+- Migration: existing single-token setups keep working as a read-only fallback until you save a host-specific token or remove the legacy entry from the manage dialog. No automatic destructive migration.
+- Internal: scope-aware cleanup of legacy `gitIssues.gitlab.token` config (Global / Workspace / WorkspaceFolder) with partial-failure reporting; URL-based host validation and Punycode/IPv6 canonicalisation so save and lookup hit the same secret slot.
+
 ## 1.2.2 — 2026-04-26
 
 - Fix: smarter default repository selection in monorepos with several nested repos. The active repo is now picked by priority: (1) previously chosen repo persisted via Quick Pick, (2) keep current selection if still valid, (3) repo containing the file in the active editor, (4) avoid worktrees as a default, (5) fallback to first detected.

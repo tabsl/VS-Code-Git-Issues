@@ -14,6 +14,7 @@ Manage GitHub and GitLab issues directly from VS Code. Browse, create, edit, and
 - **Assignment Indicator** — Issues assigned to you are marked with a person icon in the sidebar
 - **File Upload (GitLab)** — Drag-and-drop, paste images from the clipboard, or pick a file when commenting on or editing GitLab issues
 - **Multi-Repo Workspaces** — Detects all git repos in your workspace, including nested ones (monorepos with sibling repos like `app/`, `api/`, `site/`). The active repo follows your editor; pin a specific one via `Git Issues: Select Repository`.
+- **Multiple GitLab Instances** — Configure separate Personal Access Tokens per host (e.g. `gitlab.com` and your self-hosted `gitlab.example.com`). The right token is picked automatically based on each repo's git remote.
 
 ## Getting Started
 
@@ -21,10 +22,17 @@ Manage GitHub and GitLab issues directly from VS Code. Browse, create, edit, and
 2. Open a project with a GitHub or GitLab remote
 3. Configure your token via the command palette:
    - `Git Issues: Configure GitHub Token` — for GitHub repos
-   - `Git Issues: Configure GitLab Token` — for GitLab repos
+   - `Git Issues: Configure GitLab Token` — for GitLab repos (you'll be asked which host the token belongs to; the active repo's host is pre-filled)
 4. Your issues appear in the **Git Issues** sidebar
 
-Tokens configured via commands are stored securely in VS Code Secret Storage.
+Tokens configured via commands are stored securely in VS Code Secret Storage. GitLab tokens are stored per host, so you can have separate tokens for `gitlab.com`, `gitlab.example.com` and any other instance.
+
+### Managing Multiple GitLab Tokens
+
+- Run `Git Issues: Configure GitLab Token` once per host. The extension stores tokens under a host-specific key (`gitIssues.gitlab.token:<host>`).
+- When opening a repo, the extension matches the token to the host of the git `origin` remote — no need to switch tokens manually.
+- Use `Git Issues: Manage GitLab Tokens` to list configured hosts and remove tokens you no longer need.
+- Existing single-token setups keep working as a read-only fallback until you save a host-specific token or remove the legacy entry from the manage dialog.
 
 ### Token Permissions
 
@@ -51,7 +59,8 @@ All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+
 - **Git Issues: Create Branch from Issue** — Create and switch to a new branch named after an issue (right-click an issue in the sidebar)
 - **Git Issues: Open in Browser** — Open the selected issue in your default browser (also available as a 🌐 icon next to issues in the sidebar)
 - **Git Issues: Configure GitHub Token** — Set your GitHub PAT
-- **Git Issues: Configure GitLab Token** — Set your GitLab PAT
+- **Git Issues: Configure GitLab Token** — Set a GitLab PAT for a specific host (supports multiple GitLab instances)
+- **Git Issues: Manage GitLab Tokens** — List and remove configured GitLab tokens per host
 
 ## Multi-Repo Workspaces
 

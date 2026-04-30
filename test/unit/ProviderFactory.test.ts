@@ -32,7 +32,7 @@ describe('ProviderFactory', () => {
     (GitRemoteDetector.detect as any).mockResolvedValue(null);
 
     const result = await ProviderFactory.create('/workspace', {
-      githubToken: 'token', gitlabToken: '', gitlabUrl: 'https://gitlab.com',
+      githubToken: 'token', getGitLabToken: async () => '', gitlabUrl: 'https://gitlab.com',
     });
 
     expect(result.reason).toBe('no-remote');
@@ -45,7 +45,7 @@ describe('ProviderFactory', () => {
     });
 
     const result = await ProviderFactory.create('/workspace', {
-      githubToken: '', gitlabToken: '', gitlabUrl: 'https://gitlab.com',
+      githubToken: '', getGitLabToken: async () => '', gitlabUrl: 'https://gitlab.com',
     });
 
     expect(result.reason).toBe('no-token');
@@ -58,7 +58,7 @@ describe('ProviderFactory', () => {
     });
 
     const result = await ProviderFactory.create('/workspace', {
-      githubToken: '', gitlabToken: '', gitlabUrl: 'https://gitlab.com',
+      githubToken: '', getGitLabToken: async () => '', gitlabUrl: 'https://gitlab.com',
     });
 
     expect(result.reason).toBe('no-token');
@@ -70,7 +70,7 @@ describe('ProviderFactory', () => {
     });
 
     const result = await ProviderFactory.create('/workspace', {
-      githubToken: 'ghp_test', gitlabToken: '', gitlabUrl: 'https://gitlab.com',
+      githubToken: 'ghp_test', getGitLabToken: async () => '', gitlabUrl: 'https://gitlab.com',
     });
 
     expect(result.reason).toBe('ok');
@@ -84,9 +84,24 @@ describe('ProviderFactory', () => {
     });
 
     const result = await ProviderFactory.create('/workspace', {
-      githubToken: '', gitlabToken: 'glpat-test', gitlabUrl: 'https://gitlab.com',
+      githubToken: '', getGitLabToken: async () => 'glpat-test', gitlabUrl: 'https://gitlab.com',
     });
 
+    expect(result.reason).toBe('ok');
+    expect(result.provider!.platform).toBe('gitlab');
+  });
+
+  it('passes the resolved gitlab host to the token resolver', async () => {
+    (GitRemoteDetector.detect as any).mockResolvedValue({
+      platform: 'gitlab', owner: 'group', repo: 'project', host: 'gitlab.example.com',
+    });
+
+    const resolver = vi.fn().mockResolvedValue('glpat-self-hosted');
+    const result = await ProviderFactory.create('/workspace', {
+      githubToken: '', getGitLabToken: resolver, gitlabUrl: 'https://gitlab.com',
+    });
+
+    expect(resolver).toHaveBeenCalledWith('gitlab.example.com');
     expect(result.reason).toBe('ok');
     expect(result.provider!.platform).toBe('gitlab');
   });
@@ -97,10 +112,10 @@ describe('ProviderFactory', () => {
     });
 
     const result1 = await ProviderFactory.create('/workspace', {
-      githubToken: 'ghp_test', gitlabToken: '', gitlabUrl: '',
+      githubToken: 'ghp_test', getGitLabToken: async () => '', gitlabUrl: '',
     });
     const result2 = await ProviderFactory.create('/workspace', {
-      githubToken: 'ghp_test', gitlabToken: '', gitlabUrl: '',
+      githubToken: 'ghp_test', getGitLabToken: async () => '', gitlabUrl: '',
     });
 
     expect(result1.provider).toBe(result2.provider);
@@ -113,13 +128,13 @@ describe('ProviderFactory', () => {
     });
 
     await ProviderFactory.create('/workspace', {
-      githubToken: 'ghp_test', gitlabToken: '', gitlabUrl: '',
+      githubToken: 'ghp_test', getGitLabToken: async () => '', gitlabUrl: '',
     });
 
     ProviderFactory.clear();
 
     await ProviderFactory.create('/workspace', {
-      githubToken: 'ghp_test', gitlabToken: '', gitlabUrl: '',
+      githubToken: 'ghp_test', getGitLabToken: async () => '', gitlabUrl: '',
     });
 
     expect(GitRemoteDetector.detect).toHaveBeenCalledTimes(2);
