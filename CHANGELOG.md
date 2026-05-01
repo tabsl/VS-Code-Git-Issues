@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1 — 2026-04-30
+
+Security release — please update.
+
+- Security (high): pin `gitIssues.gitlab.url` to `machine` scope. A malicious repository could otherwise ship a `.vscode/settings.json` overriding the GitLab host; after workspace trust the extension would resolve the override, fall back to a legacy single-token, and leak the PAT in the `PRIVATE-TOKEN` header on the first API call. Workspace overrides for this setting are now intentionally rejected.
+- Security (low): replace `startsWith` host check in the GitLab image proxy (`fetchImage` and `MarkdownRenderer.needsProxy`) with a strict protocol+host comparison via URL parsing. Restricts upload-path matching to a single non-slash segment, rejects `..`/`%2F`, and url-encodes hash/filename when building the API URL — closes a path traversal vector that allowed an issue author to redirect the proxied request to other authenticated GitLab API endpoints.
+- Security (low): use `crypto.randomBytes` instead of `Math.random` for the webview CSP nonce.
+
 ## 1.3.0 — 2026-04-30
 
 - Add: multiple GitLab Personal Access Tokens — one per host (e.g. `gitlab.com` plus self-hosted `gitlab.example.com`). The right token is picked automatically based on the repo's git remote.
