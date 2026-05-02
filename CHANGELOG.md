@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.3 — 2026-05-02
+
+- UI: redesigned issue detail header — single title row with `#id` first, then title, then state badge; action buttons aligned on the right. Meta line shows repo, author, date and comment count; labels and assignees moved into an inline chips row. Sidebar removed for full body width.
+- UI: unified action buttons — `Edit` as primary (theme colour), `Branch`/`Browser` as ghost outlines, `Close` filled red, `Reopen` filled green.
+- UI: comment submit button restyled as filled green button for clearer call-to-action.
+- UI: label chips use a neutral pill background with the label colour shown as a small leading dot — less visually loud and plays nicer with VS Code themes. Assignee chips share the same neutral pill style.
+- UI: images in issue body and comments are now capped at 360px height. Click opens the full-size lightbox.
+
 ## 1.3.2 — 2026-05-02
 
 - Add: click an image in an issue body or comment to open it full-size in a lightbox overlay. Close with the `×` button, by clicking the backdrop, or with `Esc`.

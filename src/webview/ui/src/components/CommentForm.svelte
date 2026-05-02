@@ -64,23 +64,23 @@
 
   .btn-primary {
     align-self: flex-end;
-    background: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
+    background: var(--vscode-testing-iconPassed, #2da44e);
+    color: #fff;
     border: none;
-    padding: 6px 16px;
+    padding: 6px 18px;
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.85em;
-    font-weight: 500;
-    transition: background 0.15s;
+    font-weight: 600;
+    transition: filter 0.15s, opacity 0.15s;
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: var(--vscode-button-hoverBackground);
+    filter: brightness(1.08);
   }
 
   .btn-primary:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
   }
 

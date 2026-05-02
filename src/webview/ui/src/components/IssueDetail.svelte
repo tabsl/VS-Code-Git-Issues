@@ -37,80 +37,70 @@
 
 <article>
   <header>
-    {#if repositoryInfo}
-      <div class="repo-name">{repositoryInfo.owner}/{repositoryInfo.repo}</div>
-    {/if}
     <div class="title-row">
-      <h1>{issue.title} <span class="number">#{issue.number}</span></h1>
-    </div>
-
-    <div class="meta">
-      <span class="badge" class:open={issue.state === 'open'} class:closed={issue.state !== 'open'}>
+      <span class="number">#{issue.number}</span>
+      <h1>{issue.title}</h1>
+      <span class="state-badge" class:open={issue.state === 'open'} class:closed={issue.state !== 'open'}>
         {issue.state}
       </span>
-      <span class="avatar avatar-sm" title={issue.author.login}>{getInitials(issue.author.login)}</span>
-      <span class="author">{issue.author.login}</span>
-      <span class="separator">·</span>
-      <span class="date">opened {formatDate(issue.createdAt)}</span>
+      <div class="actions">
+        <button class="btn btn-primary" onclick={onedit} title="Edit issue">Edit</button>
+        <button class="btn btn-ghost" onclick={createBranch} title="Create branch from issue">Branch</button>
+        <button class="btn btn-ghost" onclick={openInBrowser} title="Open in browser">Browser</button>
+        <button
+          class="btn"
+          class:btn-state-close={issue.state === 'open'}
+          class:btn-state-reopen={issue.state !== 'open'}
+          onclick={toggleState}
+          title={issue.state === 'open' ? 'Close issue' : 'Reopen issue'}
+        >
+          {issue.state === 'open' ? 'Close' : 'Reopen'}
+        </button>
+      </div>
     </div>
 
-    <div class="actions">
-      <button class="btn btn-primary" onclick={onedit}>Edit</button>
-      <button class="btn btn-secondary" onclick={createBranch}>Create Branch</button>
-      <button class="btn btn-secondary" onclick={openInBrowser}>Open in Browser</button>
-      <button
-        class="btn"
-        class:btn-danger={issue.state === 'open'}
-        class:btn-success={issue.state !== 'open'}
-        onclick={toggleState}
-      >
-        {issue.state === 'open' ? 'Close Issue' : 'Reopen Issue'}
-      </button>
+    <div class="meta-line">
+      {#if repositoryInfo}
+        <span class="repo">{repositoryInfo.owner}/{repositoryInfo.repo}</span>
+        <span class="dot">·</span>
+      {/if}
+      <span class="avatar avatar-xs" title={issue.author.login}>{getInitials(issue.author.login)}</span>
+      <span>{issue.author.login}</span>
+      <span class="dot">·</span>
+      <span>opened {formatDate(issue.createdAt)}</span>
+      <span class="dot">·</span>
+      <span>{issue.commentCount} {issue.commentCount === 1 ? 'comment' : 'comments'}</span>
     </div>
+
+    {#if issue.labels.length > 0 || issue.assignees.length > 0}
+      <div class="chips">
+        {#each issue.labels as label}
+          <span class="label-chip">
+            <span class="label-dot" style:background-color={label.color ? `#${label.color}` : 'var(--vscode-descriptionForeground)'}></span>
+            {label.name}
+          </span>
+        {/each}
+        {#if issue.assignees.length > 0}
+          <span class="chips-divider"></span>
+          <span class="assignees-label">Assignees:</span>
+          {#each issue.assignees as assignee}
+            <span class="assignee-chip" title={assignee.login}>
+              <span class="avatar avatar-xs">{getInitials(assignee.login)}</span>
+              <span>{assignee.login}</span>
+            </span>
+          {/each}
+        {/if}
+      </div>
+    {/if}
   </header>
 
-  <div class="content-grid">
-    <section class="body">
-      {#if issue.body}
-        <MarkdownRenderer content={issue.body} {repositoryInfo} />
-      {:else}
-        <p class="empty">No description provided.</p>
-      {/if}
-    </section>
-
-    <aside class="sidebar">
-      <div class="sidebar-section">
-        <h3>Labels</h3>
-        {#if issue.labels.length > 0}
-          <div class="label-list">
-            {#each issue.labels as label}
-              <span class="label" style:background-color={label.color ? `#${label.color}` : 'var(--vscode-badge-background)'}>
-                {label.name}
-              </span>
-            {/each}
-          </div>
-        {:else}
-          <span class="empty">None</span>
-        {/if}
-      </div>
-
-      <div class="sidebar-section">
-        <h3>Assignees</h3>
-        {#if issue.assignees.length > 0}
-          <ul class="assignee-list">
-            {#each issue.assignees as assignee}
-              <li>
-                <span class="avatar avatar-xs" title={assignee.login}>{getInitials(assignee.login)}</span>
-                <span>{assignee.login}</span>
-              </li>
-            {/each}
-          </ul>
-        {:else}
-          <span class="empty">No one assigned</span>
-        {/if}
-      </div>
-    </aside>
-  </div>
+  <section class="body">
+    {#if issue.body}
+      <MarkdownRenderer content={issue.body} {repositoryInfo} />
+    {:else}
+      <p class="empty">No description provided.</p>
+    {/if}
+  </section>
 
   <section class="comments-section">
     <h2>Comments ({issue.commentCount})</h2>
@@ -124,56 +114,133 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    max-width: 980px;
   }
 
-  .repo-name {
-    font-size: 0.82em;
-    color: var(--vscode-descriptionForeground);
-    margin-bottom: 2px;
-    letter-spacing: 0.02em;
+  /* Header */
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+  }
+
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 
   .title-row h1 {
     margin: 0;
-    font-size: 1.4em;
+    min-width: 0;
+    font-size: 1.3em;
     font-weight: 600;
     line-height: 1.3;
+    word-break: break-word;
   }
 
   .number {
     color: var(--vscode-descriptionForeground);
-    font-weight: 400;
+    font-weight: 500;
+    font-size: 1.15em;
+    flex-shrink: 0;
   }
 
-  .meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 8px;
-    font-size: 0.9em;
-    color: var(--vscode-descriptionForeground);
-  }
-
-  .separator {
-    opacity: 0.5;
-  }
-
-  .badge {
-    padding: 2px 10px;
-    border-radius: 10px;
-    font-size: 0.8em;
+  .state-badge {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.72em;
     font-weight: 600;
-    text-transform: capitalize;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
   }
 
-  .badge.open {
+  .state-badge.open {
     background: var(--vscode-testing-iconPassed, #28a745);
     color: #fff;
   }
 
-  .badge.closed {
+  .state-badge.closed {
     background: var(--vscode-testing-iconFailed, #6f42c1);
     color: #fff;
+  }
+
+  .meta-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+  }
+
+  .meta-line .repo {
+    font-weight: 500;
+    color: var(--vscode-foreground);
+    opacity: 0.85;
+  }
+
+  .dot {
+    opacity: 0.5;
+  }
+
+  /* Chips row */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .label-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--vscode-editor-inactiveSelectionBackground, rgba(127, 127, 127, 0.12));
+    border: 1px solid var(--vscode-panel-border);
+    color: var(--vscode-foreground);
+    font-size: 0.78em;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  .label-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .chips-divider {
+    width: 1px;
+    height: 14px;
+    background: var(--vscode-panel-border);
+    margin: 0 4px;
+  }
+
+  .assignees-label {
+    font-size: 0.8em;
+    color: var(--vscode-descriptionForeground);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .assignee-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 10px 2px 3px;
+    border-radius: 999px;
+    background: var(--vscode-editor-inactiveSelectionBackground, rgba(127, 127, 127, 0.12));
+    border: 1px solid var(--vscode-panel-border);
+    color: var(--vscode-foreground);
+    font-size: 0.78em;
   }
 
   /* Avatar */
@@ -183,39 +250,37 @@
     justify-content: center;
     border-radius: 50%;
     font-weight: 600;
-    background: var(--vscode-badge-background);
-    color: var(--vscode-badge-foreground);
+    background: var(--vscode-button-secondaryBackground, var(--vscode-input-background));
+    color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
     flex-shrink: 0;
     user-select: none;
   }
 
-  .avatar-sm {
-    width: 22px;
-    height: 22px;
-    font-size: 0.65em;
-  }
-
   .avatar-xs {
-    width: 20px;
-    height: 20px;
-    font-size: 0.6em;
+    width: 18px;
+    height: 18px;
+    font-size: 0.62em;
   }
 
-  /* Buttons */
+  /* Buttons — unified style */
   .actions {
     display: flex;
-    gap: 6px;
-    margin-top: 10px;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: auto;
   }
 
   .btn {
-    border: none;
-    padding: 5px 14px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--vscode-foreground);
+    padding: 4px 12px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 0.85em;
+    font-size: 0.82em;
     font-weight: 500;
-    transition: background 0.15s, opacity 0.15s;
+    line-height: 1.4;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
   }
 
   .btn-primary {
@@ -227,126 +292,66 @@
     background: var(--vscode-button-hoverBackground);
   }
 
-  .btn-secondary {
-    background: transparent;
+  .btn-ghost {
+    border-color: var(--vscode-input-border, var(--vscode-panel-border));
     color: var(--vscode-foreground);
-    border: 1px solid var(--vscode-input-border);
-  }
-
-  .btn-secondary:hover {
-    background: var(--vscode-editor-hoverHighlightBackground);
-  }
-
-  .btn-danger {
-    background: var(--vscode-inputValidation-errorBackground, #5a1d1d);
-    color: var(--vscode-errorForeground, #f48771);
-    border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
-  }
-
-  .btn-danger:hover {
     opacity: 0.85;
   }
 
-  .btn-success {
-    background: var(--vscode-testing-iconPassed, #28a745);
+  .btn-ghost:hover {
+    background: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--vscode-foreground) 8%, transparent));
+    opacity: 1;
+  }
+
+  .btn-state-close {
+    background: var(--vscode-statusBarItem-errorBackground, #d35454);
+    color: var(--vscode-statusBarItem-errorForeground, #fff);
+    border-color: transparent;
+  }
+
+  .btn-state-close:hover {
+    filter: brightness(1.08);
+  }
+
+  .btn-state-reopen {
+    background: var(--vscode-testing-iconPassed, #2da44e);
     color: #fff;
+    border-color: transparent;
   }
 
-  .btn-success:hover {
-    opacity: 0.85;
+  .btn-state-reopen:hover {
+    filter: brightness(1.08);
   }
 
-  /* Content grid */
-  .content-grid {
-    display: grid;
-    grid-template-columns: 1fr 220px;
-    gap: 20px;
-  }
-
+  /* Body */
   .body {
-    padding: 14px;
+    padding: 14px 16px;
     border: 1px solid var(--vscode-panel-border);
     border-radius: 6px;
-    white-space: pre-wrap;
-    word-wrap: break-word;
+    background: var(--vscode-editor-background);
     line-height: 1.6;
-  }
-
-  /* Sidebar */
-  .sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .sidebar-section {
-    padding: 10px 0;
-    border-bottom: 1px solid var(--vscode-panel-border);
-  }
-
-  .sidebar-section:first-child {
-    padding-top: 0;
-  }
-
-  .sidebar-section:last-child {
-    border-bottom: none;
-  }
-
-  .sidebar-section h3 {
-    margin: 0 0 8px;
-    font-size: 0.75em;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--vscode-descriptionForeground);
-  }
-
-  .label-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-
-  .label {
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 0.8em;
-    font-weight: 600;
-    color: #fff;
-  }
-
-  .assignee-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .assignee-list li {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.9em;
+    word-wrap: break-word;
   }
 
   .empty {
     color: var(--vscode-descriptionForeground);
     font-style: italic;
-    font-size: 0.85em;
+    font-size: 0.9em;
+    margin: 0;
   }
 
   .comments-section h2 {
-    font-size: 1.05em;
-    margin: 8px 0;
+    font-size: 1.02em;
+    font-weight: 600;
+    margin: 4px 0 12px;
+    padding-top: 8px;
     border-top: 1px solid var(--vscode-panel-border);
-    padding-top: 14px;
   }
 
-  @media (max-width: 600px) {
-    .content-grid {
-      grid-template-columns: 1fr;
+  @media (max-width: 720px) {
+    .actions {
+      width: 100%;
+      flex-wrap: wrap;
     }
   }
 </style>

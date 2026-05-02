@@ -288,8 +288,11 @@
 
   .markdown-body :global(img) {
     max-width: 100%;
+    max-height: 360px;
+    object-fit: contain;
     border-radius: 4px;
     cursor: zoom-in;
+    background: var(--vscode-editor-inactiveSelectionBackground);
   }
 
   .lightbox-overlay {
