@@ -29,6 +29,18 @@
     return `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
+  function generateRequestId(): string {
+    return `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  let pendingSlashRequest = $state<string | null>(null);
+
+  function pickSlashCommand(): void {
+    const requestId = generateRequestId();
+    pendingSlashRequest = requestId;
+    postMessage({ type: 'pickSlashCommand', requestId });
+  }
+
   function insertAtCursor(text: string): void {
     if (!textareaEl) return;
     const start = textareaEl.selectionStart;
@@ -136,6 +148,11 @@
       if (msg.type === 'uploadNotSupported') {
         errorMsg = 'File upload is only available for GitLab repositories.';
       }
+
+      if (msg.type === 'slashCommandPicked' && msg.requestId === pendingSlashRequest) {
+        pendingSlashRequest = null;
+        insertAtCursor(msg.snippet);
+      }
     };
 
     window.addEventListener('message', handler);
@@ -144,22 +161,31 @@
 </script>
 
 <div class="upload-area" class:dragging>
-  {#if supportsUpload}
-    <div class="toolbar">
+  <div class="toolbar">
+    {#if supportsUpload}
       <button type="button" class="attach-btn" onclick={pickFile} title="Attach a file">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
           <path d="M4.317 7.157l4.949-4.95a2.5 2.5 0 1 1 3.536 3.536l-6.364 6.364a1 1 0 0 1-1.414-1.414l6.364-6.364a.5.5 0 0 0-.708-.708l-4.95 4.95a2 2 0 1 0 2.829 2.828l6.364-6.364a3.5 3.5 0 0 0-4.95-4.95L4.318 5.744a3 3 0 1 0 4.243 4.243l4.95-4.95.706.708-4.95 4.95a4 4 0 1 1-5.656-5.657l.707-.707z"/>
         </svg>
         Attach file
       </button>
-      {#if uploading > 0}
-        <span class="upload-status">
-          <span class="spinner"></span>
-          Uploading...
-        </span>
-      {/if}
-    </div>
-  {/if}
+    {/if}
+    <button
+      type="button"
+      class="attach-btn"
+      onclick={pickSlashCommand}
+      title={platform === 'gitlab' ? 'Insert a slash command (parsed by GitLab)' : 'Insert a slash command — note: GitHub does not parse these'}
+    >
+      <span class="slash-glyph">/</span>
+      Slash command
+    </button>
+    {#if uploading > 0}
+      <span class="upload-status">
+        <span class="spinner"></span>
+        Uploading...
+      </span>
+    {/if}
+  </div>
 
   <div class="textarea-wrap">
     <textarea
@@ -219,6 +245,20 @@
 
   .attach-btn svg {
     opacity: 0.8;
+  }
+
+  .slash-glyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    font-weight: 700;
+    font-size: 0.75em;
+    line-height: 1;
+    opacity: 0.85;
   }
 
   .upload-status {

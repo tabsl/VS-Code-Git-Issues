@@ -55,7 +55,8 @@ export type MessageToWebview =
   | { type: 'filesPicked'; files: Array<{ fileName: string; fileContentBase64: string }> }
   | { type: 'uploadNotSupported'; platform: string }
   | { type: 'imageProxied'; requestId: string; dataUri: string }
-  | { type: 'imageProxyFailed'; requestId: string; imageUrl: string };
+  | { type: 'imageProxyFailed'; requestId: string; imageUrl: string }
+  | { type: 'slashCommandPicked'; requestId: string; snippet: string };
 
 export type MessageToExtension =
   | { type: 'addComment'; body: string }
@@ -65,7 +66,8 @@ export type MessageToExtension =
   | { type: 'refresh' }
   | { type: 'uploadFile'; fileName: string; fileContentBase64: string; uploadId: string }
   | { type: 'pickFile' }
-  | { type: 'proxyImage'; requestId: string; imageUrl: string };
+  | { type: 'proxyImage'; requestId: string; imageUrl: string }
+  | { type: 'pickSlashCommand'; requestId: string };
 
 export interface VsCodeApi {
   postMessage(message: MessageToExtension): void;

@@ -122,6 +122,9 @@ export class IssueWebviewPanel {
           case 'proxyImage':
             await this.handleProxyImage(msg.requestId, msg.imageUrl);
             break;
+          case 'pickSlashCommand':
+            await this.handlePickSlashCommand(msg.requestId);
+            break;
         }
       },
       null,
@@ -293,6 +296,70 @@ export class IssueWebviewPanel {
         message: `Failed to read file: ${message}`,
       });
     }
+  }
+
+  private async handlePickSlashCommand(requestId: string): Promise<void> {
+    const platform = this.provider.platform;
+    const groups: Array<{ label: string; commands: Array<{ label: string; snippet: string; description?: string }> }> = [
+      {
+        label: 'Status',
+        commands: [
+          { label: '/close', snippet: '/close', description: 'Close this issue when the comment is posted' },
+          { label: '/reopen', snippet: '/reopen', description: 'Reopen this issue when the comment is posted' },
+        ],
+      },
+      {
+        label: 'People',
+        commands: [
+          { label: '/assign', snippet: '/assign @username', description: 'Assign someone (replace @username)' },
+          { label: '/unassign', snippet: '/unassign @username', description: 'Remove an assignee' },
+          { label: '/cc', snippet: '/cc @username', description: 'Mention without assigning (GitLab)' },
+        ],
+      },
+      {
+        label: 'Labels & Milestone',
+        commands: [
+          { label: '/label', snippet: '/label ~labelname', description: 'Add a label' },
+          { label: '/unlabel', snippet: '/unlabel ~labelname', description: 'Remove a label' },
+          { label: '/milestone', snippet: '/milestone %milestonename', description: 'Set the milestone' },
+        ],
+      },
+      {
+        label: 'Other',
+        commands: [
+          { label: '/due', snippet: '/due 2026-12-31', description: 'Set a due date (GitLab)' },
+          { label: '/estimate', snippet: '/estimate 1d 2h', description: 'Set time estimate (GitLab)' },
+          { label: '/spend', snippet: '/spend 30m', description: 'Add spent time (GitLab)' },
+          { label: '/lock', snippet: '/lock', description: 'Lock the issue (GitLab)' },
+        ],
+      },
+    ];
+
+    type Item = vscode.QuickPickItem & { snippet?: string };
+    const items: Item[] = [];
+    for (const g of groups) {
+      items.push({ label: g.label, kind: vscode.QuickPickItemKind.Separator });
+      for (const c of g.commands) {
+        items.push({ label: c.label, description: c.description, snippet: c.snippet });
+      }
+    }
+
+    const placeHolder = platform === 'gitlab'
+      ? 'Pick a slash command — GitLab parses these on submit'
+      : 'Pick a slash command — note: GitHub does NOT execute these natively';
+
+    const picked = await vscode.window.showQuickPick(items, {
+      placeHolder,
+      matchOnDescription: true,
+    });
+    if (!picked || !picked.snippet) {
+      return;
+    }
+    this.panel.webview.postMessage({
+      type: 'slashCommandPicked',
+      requestId,
+      snippet: picked.snippet,
+    });
   }
 
   private async handleProxyImage(requestId: string, imageUrl: string): Promise<void> {
