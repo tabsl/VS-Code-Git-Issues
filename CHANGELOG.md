@@ -7,6 +7,7 @@
 - Add: label and milestone filters — `Git Issues: Filter by Labels` opens a multi-select Quick Pick of all repository labels, `Git Issues: Filter by Milestone` filters by a single milestone (with a "Clear" entry). Both are server-side filters and refresh the list. Works for GitHub and GitLab.
 - Add: issue templates — `Git Issues: Create Issue` reads `.github/ISSUE_TEMPLATE/*.md` (GitHub) or `.gitlab/issue_templates/*.md` (GitLab) from the active repo and lets you pick one. Frontmatter `title:`, `labels:` and `body` are pre-filled. Repos without templates keep the previous blank flow.
 - Add: slash-command insert helper in the comment editor and issue edit form. A "/ Slash command" toolbar button opens a Quick Pick of common GitLab quick actions (`/close`, `/assign`, `/label`, `/milestone`, `/due`, `/spend`, …). Selected snippet is inserted at the cursor. GitLab parses these on submit; for GitHub the picker shows a heads-up that the actions are not parsed natively.
+- Add: Write / Preview tab in the comment editor and issue edit form. Switch to "Preview" to see the rendered Markdown (with the same image proxy and relative-URL resolution the issue body uses). Disabled when the editor is empty.
 
 ## 1.3.3 — 2026-05-02
 

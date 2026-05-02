@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { MessageToWebview } from '../types';
+  import type { MessageToWebview, RepositoryInfo } from '../types';
   import { postMessage } from '../stores/vscodeApi';
+  import MarkdownRenderer from './MarkdownRenderer.svelte';
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -11,13 +12,17 @@
     rows = 3,
     platform = 'github',
     uploading = $bindable(0),
+    repositoryInfo = null,
   }: {
     value: string;
     placeholder?: string;
     rows?: number;
     platform?: 'github' | 'gitlab';
     uploading?: number;
+    repositoryInfo?: RepositoryInfo | null;
   } = $props();
+
+  let mode = $state<'write' | 'preview'>('write');
 
   let textareaEl: HTMLTextAreaElement;
   let dragging = $state(false);
@@ -161,50 +166,79 @@
 </script>
 
 <div class="upload-area" class:dragging>
-  <div class="toolbar">
-    {#if supportsUpload}
-      <button type="button" class="attach-btn" onclick={pickFile} title="Attach a file">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M4.317 7.157l4.949-4.95a2.5 2.5 0 1 1 3.536 3.536l-6.364 6.364a1 1 0 0 1-1.414-1.414l6.364-6.364a.5.5 0 0 0-.708-.708l-4.95 4.95a2 2 0 1 0 2.829 2.828l6.364-6.364a3.5 3.5 0 0 0-4.95-4.95L4.318 5.744a3 3 0 1 0 4.243 4.243l4.95-4.95.706.708-4.95 4.95a4 4 0 1 1-5.656-5.657l.707-.707z"/>
-        </svg>
-        Attach file
-      </button>
-    {/if}
+  <div class="tabs">
     <button
       type="button"
-      class="attach-btn"
-      onclick={pickSlashCommand}
-      title={platform === 'gitlab' ? 'Insert a slash command (parsed by GitLab)' : 'Insert a slash command — note: GitHub does not parse these'}
-    >
-      <span class="slash-glyph">/</span>
-      Slash command
-    </button>
-    {#if uploading > 0}
-      <span class="upload-status">
-        <span class="spinner"></span>
-        Uploading...
-      </span>
+      class="tab"
+      class:active={mode === 'write'}
+      onclick={() => (mode = 'write')}
+    >Write</button>
+    <button
+      type="button"
+      class="tab"
+      class:active={mode === 'preview'}
+      disabled={!value.trim()}
+      onclick={() => (mode = 'preview')}
+    >Preview</button>
+  </div>
+  <div class="toolbar">
+    {#if mode === 'write'}
+      {#if supportsUpload}
+        <button type="button" class="attach-btn" onclick={pickFile} title="Attach a file">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M4.317 7.157l4.949-4.95a2.5 2.5 0 1 1 3.536 3.536l-6.364 6.364a1 1 0 0 1-1.414-1.414l6.364-6.364a.5.5 0 0 0-.708-.708l-4.95 4.95a2 2 0 1 0 2.829 2.828l6.364-6.364a3.5 3.5 0 0 0-4.95-4.95L4.318 5.744a3 3 0 1 0 4.243 4.243l4.95-4.95.706.708-4.95 4.95a4 4 0 1 1-5.656-5.657l.707-.707z"/>
+          </svg>
+          Attach file
+        </button>
+      {/if}
+      <button
+        type="button"
+        class="attach-btn"
+        onclick={pickSlashCommand}
+        title={platform === 'gitlab' ? 'Insert a slash command (parsed by GitLab)' : 'Insert a slash command — note: GitHub does not parse these'}
+      >
+        <span class="slash-glyph">/</span>
+        Slash command
+      </button>
+      {#if uploading > 0}
+        <span class="upload-status">
+          <span class="spinner"></span>
+          Uploading...
+        </span>
+      {/if}
+    {:else}
+      <span class="preview-hint">Preview · close to edit</span>
     {/if}
   </div>
 
-  <div class="textarea-wrap">
-    <textarea
-      bind:this={textareaEl}
-      bind:value
-      {placeholder}
-      {rows}
-      ondragover={handleDragOver}
-      ondragleave={handleDragLeave}
-      ondrop={handleDrop}
-      onpaste={handlePaste}
-    ></textarea>
+  {#if mode === 'write'}
+    <div class="textarea-wrap">
+      <textarea
+        bind:this={textareaEl}
+        bind:value
+        {placeholder}
+        {rows}
+        ondragover={handleDragOver}
+        ondragleave={handleDragLeave}
+        ondrop={handleDrop}
+        onpaste={handlePaste}
+      ></textarea>
 
-    {#if dragging}
-      <div class="drop-overlay">
-        <span>{supportsUpload ? 'Drop files to upload' : 'File upload not supported for GitHub'}</span>
-      </div>
-    {/if}
-  </div>
+      {#if dragging}
+        <div class="drop-overlay">
+          <span>{supportsUpload ? 'Drop files to upload' : 'File upload not supported for GitHub'}</span>
+        </div>
+      {/if}
+    </div>
+  {:else}
+    <div class="preview-pane" style:min-height={`${rows * 1.6}em`}>
+      {#if value.trim()}
+        <MarkdownRenderer content={value} {repositoryInfo} />
+      {:else}
+        <span class="preview-empty">Nothing to preview yet.</span>
+      {/if}
+    </div>
+  {/if}
 
   {#if errorMsg}
     <div class="upload-error">{errorMsg}</div>
@@ -218,11 +252,66 @@
     gap: 0;
   }
 
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--vscode-input-border);
+    margin-bottom: 4px;
+  }
+
+  .tab {
+    background: transparent;
+    border: none;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    padding: 4px 12px;
+    font-size: 0.85em;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .tab:hover:not(:disabled) {
+    color: var(--vscode-foreground);
+  }
+
+  .tab.active {
+    color: var(--vscode-foreground);
+    border-bottom-color: var(--vscode-focusBorder);
+    font-weight: 600;
+  }
+
+  .tab:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   .toolbar {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 4px 0;
+  }
+
+  .preview-hint {
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.8em;
+    font-style: italic;
+  }
+
+  .preview-pane {
+    border: 1px solid var(--vscode-input-border);
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border-radius: 4px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+  }
+
+  .preview-empty {
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+    font-size: 0.85em;
   }
 
   .attach-btn {

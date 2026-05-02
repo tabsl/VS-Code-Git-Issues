@@ -1,10 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { MessageToWebview } from '../types';
+  import type { MessageToWebview, RepositoryInfo } from '../types';
   import { postMessage } from '../stores/vscodeApi';
   import FileUploadArea from './FileUploadArea.svelte';
 
-  let { platform = 'github' }: { platform?: 'github' | 'gitlab' } = $props();
+  let {
+    platform = 'github',
+    repositoryInfo = null,
+  }: { platform?: 'github' | 'gitlab'; repositoryInfo?: RepositoryInfo | null } = $props();
 
   let body = $state('');
   let submitting = $state(false);
@@ -42,7 +45,7 @@
 </script>
 
 <div class="comment-form">
-  <FileUploadArea bind:value={body} bind:uploading={uploadsInProgress} placeholder="Write a comment..." rows={3} {platform} />
+  <FileUploadArea bind:value={body} bind:uploading={uploadsInProgress} placeholder="Write a comment..." rows={3} {platform} {repositoryInfo} />
   <button class="btn-primary" onclick={submit} disabled={!body.trim() || submitting || uploadsInProgress > 0}>
     Comment
   </button>

@@ -142,6 +142,7 @@
       placeholder="Issue description..."
       rows={10}
       platform={repositoryInfo?.platform || 'github'}
+      {repositoryInfo}
     />
   </div>
 
