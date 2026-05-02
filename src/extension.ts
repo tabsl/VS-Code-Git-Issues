@@ -283,11 +283,21 @@ function updateTreeViewDescription(): void {
   if (!treeView) {
     return;
   }
+  const parts: string[] = [];
   if (detectedRepositories.length > 1 && activeRepository) {
-    treeView.description = `${activeRepository.remote.owner}/${activeRepository.remote.repo}`;
-  } else {
-    treeView.description = undefined;
+    parts.push(`${activeRepository.remote.owner}/${activeRepository.remote.repo}`);
   }
+  if (currentSearchQuery) {
+    parts.push(`🔍 ${currentSearchQuery}`);
+  }
+  treeView.description = parts.length > 0 ? parts.join(' · ') : undefined;
+}
+
+let currentSearchQuery = '';
+
+export function setSearchDescription(query: string): void {
+  currentSearchQuery = query;
+  updateTreeViewDescription();
 }
 
 async function updateMultiRepoContext(): Promise<void> {

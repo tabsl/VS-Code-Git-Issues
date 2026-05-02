@@ -6,6 +6,7 @@ import type { IssueTreeItem } from '../tree/IssueTreeItem';
 import type { DetectedRepository } from '../git/RepositoryResolver';
 import { RepositoryResolver } from '../git/RepositoryResolver';
 import { GitOperations } from '../git/GitOperations';
+import { setSearchDescription } from '../extension';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -19,6 +20,41 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand('gitIssues.refresh', () => {
       treeDataProvider.refresh();
+    })
+  );
+
+  // Search (local filter)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitIssues.search', async () => {
+      const current = treeDataProvider.getSearchQuery();
+      const query = await vscode.window.showInputBox({
+        prompt: 'Search issues (title, #number, author, label, assignee)',
+        placeHolder: 'Type to filter loaded issues, leave empty to clear',
+        value: current,
+        ignoreFocusOut: true,
+      });
+      if (query === undefined) { return; }
+      const trimmed = query.trim();
+      treeDataProvider.setSearchQuery(trimmed);
+      setSearchDescription(trimmed);
+      await vscode.commands.executeCommand(
+        'setContext',
+        'gitIssues.hasSearchQuery',
+        trimmed.length > 0
+      );
+    })
+  );
+
+  // Clear search
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitIssues.clearSearch', async () => {
+      treeDataProvider.setSearchQuery('');
+      setSearchDescription('');
+      await vscode.commands.executeCommand(
+        'setContext',
+        'gitIssues.hasSearchQuery',
+        false
+      );
     })
   );
 

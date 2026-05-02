@@ -59,6 +59,18 @@
         "category": "Git Issues"
       },
       {
+        "command": "gitIssues.search",
+        "title": "Search Issues",
+        "icon": "$(search)",
+        "category": "Git Issues"
+      },
+      {
+        "command": "gitIssues.clearSearch",
+        "title": "Clear Search",
+        "icon": "$(search-stop)",
+        "category": "Git Issues"
+      },
+      {
         "command": "gitIssues.createIssue",
         "title": "Create Issue",
         "icon": "$(add)",
@@ -117,19 +129,29 @@
           "group": "navigation@1"
         },
         {
-          "command": "gitIssues.createIssue",
-          "when": "view == gitIssues",
+          "command": "gitIssues.search",
+          "when": "view == gitIssues && !gitIssues.hasSearchQuery",
           "group": "navigation@2"
         },
         {
-          "command": "gitIssues.filter",
+          "command": "gitIssues.clearSearch",
+          "when": "view == gitIssues && gitIssues.hasSearchQuery",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitIssues.createIssue",
           "when": "view == gitIssues",
           "group": "navigation@3"
         },
         {
+          "command": "gitIssues.filter",
+          "when": "view == gitIssues",
+          "group": "navigation@4"
+        },
+        {
           "command": "gitIssues.selectRepository",
           "when": "view == gitIssues && gitIssues.multipleRepositories",
-          "group": "navigation@4"
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [

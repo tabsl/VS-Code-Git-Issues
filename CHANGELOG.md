@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add: full-text search in the sidebar — `Git Issues: Search Issues` (or the magnifier icon in the view title) filters loaded issues by title, `#number`, author login, label, or assignee. Active query is shown in the view description; clear via `Git Issues: Clear Search` or the title-bar icon.
+
 ## 1.3.3 — 2026-05-02
 
 - UI: redesigned issue detail header — single title row with `#id` first, then title, then state badge; action buttons aligned on the right. Meta line shows repo, author, date and comment count; labels and assignees moved into an inline chips row. Sidebar removed for full body width.

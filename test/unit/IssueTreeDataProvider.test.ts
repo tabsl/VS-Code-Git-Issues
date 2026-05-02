@@ -169,6 +169,85 @@ describe('IssueTreeDataProvider', () => {
     });
   });
 
+  describe('search', () => {
+    it('filters issues by title substring (case-insensitive)', async () => {
+      const issues = [
+        makeIssue({ number: 1, title: 'Fix login bug' }),
+        makeIssue({ number: 2, title: 'Refactor menu' }),
+        makeIssue({ number: 3, title: 'LOGIN error on Safari' }),
+      ];
+      const provider = makeProvider(issues);
+      tdp.setState('ready', undefined, provider);
+      await new Promise(r => setTimeout(r, 50));
+
+      tdp.setSearchQuery('login');
+      const children = tdp.getChildren();
+      expect(children).toHaveLength(2);
+      expect((children[0] as IssueTreeItem).issue.number).toBe(1);
+      expect((children[1] as IssueTreeItem).issue.number).toBe(3);
+    });
+
+    it('filters by issue number', async () => {
+      const issues = [
+        makeIssue({ number: 1 }),
+        makeIssue({ number: 42 }),
+        makeIssue({ number: 100 }),
+      ];
+      const provider = makeProvider(issues);
+      tdp.setState('ready', undefined, provider);
+      await new Promise(r => setTimeout(r, 50));
+
+      tdp.setSearchQuery('#42');
+      const children = tdp.getChildren();
+      expect(children).toHaveLength(1);
+      expect((children[0] as IssueTreeItem).issue.number).toBe(42);
+    });
+
+    it('filters by author, label, or assignee', async () => {
+      const issues = [
+        makeIssue({ number: 1, author: { id: 1, login: 'alice' } }),
+        makeIssue({ number: 2, labels: [{ name: 'bug', color: '' }] }),
+        makeIssue({ number: 3, assignees: [{ id: 2, login: 'bob' }] }),
+      ];
+      const provider = makeProvider(issues);
+      tdp.setState('ready', undefined, provider);
+      await new Promise(r => setTimeout(r, 50));
+
+      tdp.setSearchQuery('alice');
+      expect(tdp.getChildren()).toHaveLength(1);
+
+      tdp.setSearchQuery('bug');
+      expect(tdp.getChildren()).toHaveLength(1);
+
+      tdp.setSearchQuery('bob');
+      expect(tdp.getChildren()).toHaveLength(1);
+    });
+
+    it('shows "no match" message when search excludes all issues', async () => {
+      const issues = [makeIssue({ number: 1, title: 'something' })];
+      const provider = makeProvider(issues);
+      tdp.setState('ready', undefined, provider);
+      await new Promise(r => setTimeout(r, 50));
+
+      tdp.setSearchQuery('nonexistent');
+      const children = tdp.getChildren();
+      expect(children).toHaveLength(1);
+      expect((children[0] as MessageTreeItem).label).toMatch(/no issues match/i);
+    });
+
+    it('returns all issues again when search is cleared', async () => {
+      const issues = [makeIssue({ number: 1, title: 'a' }), makeIssue({ number: 2, title: 'b' })];
+      const provider = makeProvider(issues);
+      tdp.setState('ready', undefined, provider);
+      await new Promise(r => setTimeout(r, 50));
+
+      tdp.setSearchQuery('a');
+      expect(tdp.getChildren()).toHaveLength(1);
+      tdp.setSearchQuery('');
+      expect(tdp.getChildren()).toHaveLength(2);
+    });
+  });
+
   describe('onDidChangeTreeData', () => {
     it('fires event on refresh', async () => {
       const listener = vi.fn();

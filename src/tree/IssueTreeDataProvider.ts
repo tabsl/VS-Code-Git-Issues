@@ -21,6 +21,7 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
   private loading = false;
   private error: string | null = null;
   private currentUserLogin: string | undefined;
+  private searchQuery = '';
 
   constructor(
     defaultState: 'open' | 'closed' | 'all',
@@ -95,13 +96,47 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
     return { ...this.filter };
   }
 
+  setSearchQuery(query: string): void {
+    this.searchQuery = query.trim();
+    this._onDidChangeTreeData.fire(undefined);
+  }
+
+  getSearchQuery(): string {
+    return this.searchQuery;
+  }
+
+  private getVisibleIssues(): Issue[] {
+    if (!this.searchQuery) {
+      return this.issues;
+    }
+    const needle = this.searchQuery.toLowerCase();
+    return this.issues.filter((i) => {
+      if (i.title.toLowerCase().includes(needle)) {
+        return true;
+      }
+      if (`#${i.number}`.includes(needle) || String(i.number) === needle) {
+        return true;
+      }
+      if (i.author.login.toLowerCase().includes(needle)) {
+        return true;
+      }
+      if (i.labels.some((l) => l.name.toLowerCase().includes(needle))) {
+        return true;
+      }
+      if (i.assignees.some((a) => a.login.toLowerCase().includes(needle))) {
+        return true;
+      }
+      return false;
+    });
+  }
+
   getTreeItem(element: TreeItem): vscode.TreeItem {
     return element;
   }
 
   getChildren(element?: TreeItem): TreeItem[] {
     if (element instanceof IssueGroupTreeItem) {
-      return this.issues
+      return this.getVisibleIssues()
         .filter((i) => i.state === element.state)
         .map((i) => new IssueTreeItem(i, this.currentUserLogin));
     }
@@ -152,9 +187,19 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
       return [new MessageTreeItem('No issues found')];
     }
 
+    const visible = this.getVisibleIssues();
+    if (visible.length === 0) {
+      return [
+        new MessageTreeItem(
+          `No issues match "${this.searchQuery}"`,
+          { command: 'gitIssues.clearSearch', title: 'Clear search' }
+        ),
+      ];
+    }
+
     if (this.filter.state === 'all') {
-      const open = this.issues.filter((i) => i.state === 'open');
-      const closed = this.issues.filter((i) => i.state === 'closed');
+      const open = visible.filter((i) => i.state === 'open');
+      const closed = visible.filter((i) => i.state === 'closed');
       const items: TreeItem[] = [];
       if (open.length > 0) {
         items.push(new IssueGroupTreeItem('open', open.length));
@@ -165,6 +210,6 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
       return items;
     }
 
-    return this.issues.map((i) => new IssueTreeItem(i, this.currentUserLogin));
+    return visible.map((i) => new IssueTreeItem(i, this.currentUserLogin));
   }
 }
