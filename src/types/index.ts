@@ -10,6 +10,14 @@ export interface Label {
   description?: string;
 }
 
+export interface Milestone {
+  // GitHub uses numeric IDs, GitLab uses iid + title; the title is the only
+  // value that survives both APIs as a filter input.
+  title: string;
+  state: 'open' | 'closed';
+  dueOn?: Date;
+}
+
 export interface Comment {
   id: number;
   body: string;
@@ -55,6 +63,7 @@ export interface UpdateIssueData {
 export interface ListIssuesOptions {
   state?: 'open' | 'closed' | 'all';
   labels?: string[];
+  milestone?: string;
   assignee?: string;
   sort?: 'created' | 'updated' | 'comments';
   direction?: 'asc' | 'desc';

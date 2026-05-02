@@ -5,6 +5,7 @@ import type {
   IssueDetail,
   Comment,
   Label,
+  Milestone,
   User,
   CreateIssueData,
   UpdateIssueData,
@@ -52,6 +53,7 @@ export class GitLabProvider implements IssueProvider {
       projectId: this.projectPath,
       state: stateMap[options.state || 'open'] as 'opened' | 'closed' | 'all',
       labels: options.labels?.join(',') as any,
+      milestone: options.milestone,
       assigneeUsername: options.assignee ? [options.assignee] : undefined,
       orderBy: (sortMap[options.sort || 'created'] || 'created_at') as any,
       sort: options.direction || 'desc',
@@ -148,6 +150,18 @@ export class GitLabProvider implements IssueProvider {
       name: l.name,
       color: (l.color || '').replace('#', ''),
       description: l.description || undefined,
+    }));
+  }
+
+  async listMilestones(): Promise<Milestone[]> {
+    const milestones = await this.gitlab.ProjectMilestones.all(this.projectPath, {
+      perPage: 100,
+    });
+    return (milestones as any[]).map((m) => ({
+      title: m.title,
+      // GitLab uses "active" / "closed"; everything that's not closed is open.
+      state: m.state === 'closed' ? 'closed' : 'open',
+      dueOn: m.due_date ? new Date(m.due_date) : undefined,
     }));
   }
 

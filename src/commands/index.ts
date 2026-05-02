@@ -179,6 +179,83 @@ export function registerCommands(
     })
   );
 
+  // Filter by labels (multi-select)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitIssues.filterByLabels', async () => {
+      const provider = getProvider();
+      if (!provider) {
+        vscode.window.showErrorMessage('Git Issues: No provider available');
+        return;
+      }
+      const labels = await provider.listLabels().catch(() => []);
+      if (labels.length === 0) {
+        vscode.window.showInformationMessage('Git Issues: No labels found in this repository');
+        return;
+      }
+
+      const current = treeDataProvider.getFilter().labels ?? [];
+      const items: vscode.QuickPickItem[] = labels.map((l) => ({
+        label: l.name,
+        description: l.description || undefined,
+        picked: current.includes(l.name),
+      }));
+      const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Pick labels (empty selection clears the filter)',
+        canPickMany: true,
+      });
+      if (picked === undefined) { return; }
+
+      const selectedLabels = picked.map((p) => p.label);
+      treeDataProvider.setFilter({ labels: selectedLabels.length > 0 ? selectedLabels : undefined });
+      await vscode.commands.executeCommand(
+        'setContext',
+        'gitIssues.hasLabelFilter',
+        selectedLabels.length > 0
+      );
+    })
+  );
+
+  // Filter by milestone (single-select)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitIssues.filterByMilestone', async () => {
+      const provider = getProvider();
+      if (!provider) {
+        vscode.window.showErrorMessage('Git Issues: No provider available');
+        return;
+      }
+      const milestones = await provider.listMilestones().catch(() => []);
+      if (milestones.length === 0) {
+        vscode.window.showInformationMessage('Git Issues: No milestones found in this repository');
+        return;
+      }
+
+      const current = treeDataProvider.getFilter().milestone;
+      type Item = vscode.QuickPickItem & { milestone?: string };
+      const items: Item[] = [
+        { label: '$(close) Clear milestone filter', milestone: undefined, picked: !current },
+        ...milestones.map<Item>((m) => ({
+          label: m.title,
+          description: m.state === 'closed'
+            ? 'closed'
+            : (m.dueOn ? `due ${m.dueOn.toLocaleDateString()}` : 'open'),
+          milestone: m.title,
+          picked: current === m.title,
+        })),
+      ];
+      const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: current ? `Current: ${current}` : 'Pick a milestone to filter by',
+      });
+      if (!picked) { return; }
+
+      treeDataProvider.setFilter({ milestone: picked.milestone });
+      await vscode.commands.executeCommand(
+        'setContext',
+        'gitIssues.hasMilestoneFilter',
+        Boolean(picked.milestone)
+      );
+    })
+  );
+
   // Quick toggle "My Issues" — both ids do the same thing; we expose two
   // command ids so that view/title can swap between an outline and a filled
   // person icon depending on whether the filter is active.

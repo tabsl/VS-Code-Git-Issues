@@ -19,6 +19,7 @@ function createMockProvider(): IssueProvider {
     listComments: vi.fn(),
     addComment: vi.fn(),
     listLabels: vi.fn().mockResolvedValue([]),
+    listMilestones: vi.fn().mockResolvedValue([]),
     listAssignees: vi.fn().mockResolvedValue([]),
     getCurrentUser: vi.fn().mockResolvedValue({ id: 1, login: 'user' }),
     getIssueUrl: vi.fn().mockReturnValue('https://github.com/o/r/issues/1'),

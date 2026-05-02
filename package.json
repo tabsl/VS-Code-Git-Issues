@@ -83,6 +83,18 @@
         "category": "Git Issues"
       },
       {
+        "command": "gitIssues.filterByLabels",
+        "title": "Filter by Labels",
+        "icon": "$(tag)",
+        "category": "Git Issues"
+      },
+      {
+        "command": "gitIssues.filterByMilestone",
+        "title": "Filter by Milestone",
+        "icon": "$(milestone)",
+        "category": "Git Issues"
+      },
+      {
         "command": "gitIssues.toggleMyIssues",
         "title": "Toggle My Issues",
         "icon": "$(person)",

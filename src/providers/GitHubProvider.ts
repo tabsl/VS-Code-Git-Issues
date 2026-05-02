@@ -5,6 +5,7 @@ import type {
   IssueDetail,
   Comment,
   Label,
+  Milestone,
   User,
   CreateIssueData,
   UpdateIssueData,
@@ -34,6 +35,9 @@ export class GitHubProvider implements IssueProvider {
       repo: this.repo,
       state: options.state === 'all' ? 'all' : options.state === 'closed' ? 'closed' : 'open',
       labels: options.labels?.join(','),
+      // GitHub accepts the milestone title or its number; the title is stable
+      // across instances so it is the only value the UI ever passes here.
+      milestone: options.milestone,
       assignee: options.assignee,
       sort: options.sort || 'created',
       direction: options.direction || 'desc',
@@ -126,6 +130,20 @@ export class GitHubProvider implements IssueProvider {
       name: l.name,
       color: l.color || '',
       description: l.description || undefined,
+    }));
+  }
+
+  async listMilestones(): Promise<Milestone[]> {
+    const response = await this.octokit.rest.issues.listMilestones({
+      owner: this.owner,
+      repo: this.repo,
+      state: 'all',
+      per_page: 100,
+    });
+    return response.data.map((m) => ({
+      title: m.title,
+      state: m.state === 'open' ? 'open' : 'closed',
+      dueOn: m.due_on ? new Date(m.due_on) : undefined,
     }));
   }
 

@@ -30,6 +30,7 @@ function makeProvider(issues: Issue[] = []): IssueProvider {
     listComments: vi.fn(),
     addComment: vi.fn(),
     listLabels: vi.fn(),
+    listMilestones: vi.fn(),
     listAssignees: vi.fn(),
     getCurrentUser: vi.fn().mockResolvedValue({ id: 1, login: 'user' }),
     getIssueUrl: vi.fn(),

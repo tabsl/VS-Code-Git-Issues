@@ -3,6 +3,7 @@ import type {
   IssueDetail,
   Comment,
   Label,
+  Milestone,
   User,
   CreateIssueData,
   UpdateIssueData,
@@ -28,6 +29,9 @@ export interface IssueProvider {
 
   // Labels
   listLabels(): Promise<Label[]>;
+
+  // Milestones
+  listMilestones(): Promise<Milestone[]>;
 
   // Assignees
   listAssignees(): Promise<User[]>;

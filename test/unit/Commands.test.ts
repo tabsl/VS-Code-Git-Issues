@@ -45,6 +45,7 @@ function createMockProvider(): IssueProvider {
     listComments: vi.fn(),
     addComment: vi.fn(),
     listLabels: vi.fn(),
+    listMilestones: vi.fn(),
     listAssignees: vi.fn(),
     getCurrentUser: vi.fn().mockResolvedValue({ id: 1, login: 'user' }),
     getIssueUrl: vi.fn().mockReturnValue('https://github.com/o/r/issues/1'),
@@ -80,14 +81,16 @@ describe('registerCommands', () => {
     registerCommands(ctx, config, tdp as any, () => provider, () => null, reinitializeProvider);
   });
 
-  it('registers all 14 commands', () => {
-    expect(registeredCommands.size).toBe(14);
+  it('registers all 16 commands', () => {
+    expect(registeredCommands.size).toBe(16);
     expect(registeredCommands.has('gitIssues.refresh')).toBe(true);
     expect(registeredCommands.has('gitIssues.search')).toBe(true);
     expect(registeredCommands.has('gitIssues.clearSearch')).toBe(true);
     expect(registeredCommands.has('gitIssues.openIssue')).toBe(true);
     expect(registeredCommands.has('gitIssues.createIssue')).toBe(true);
     expect(registeredCommands.has('gitIssues.filter')).toBe(true);
+    expect(registeredCommands.has('gitIssues.filterByLabels')).toBe(true);
+    expect(registeredCommands.has('gitIssues.filterByMilestone')).toBe(true);
     expect(registeredCommands.has('gitIssues.toggleMyIssues')).toBe(true);
     expect(registeredCommands.has('gitIssues.toggleMyIssuesActive')).toBe(true);
     expect(registeredCommands.has('gitIssues.openInBrowser')).toBe(true);
