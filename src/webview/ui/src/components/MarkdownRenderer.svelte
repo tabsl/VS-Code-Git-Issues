@@ -10,6 +10,9 @@
   let container: HTMLDivElement;
   const pendingProxies = new Map<string, HTMLImageElement>();
 
+  let lightboxSrc = $state<string | null>(null);
+  let lightboxAlt = $state<string>('');
+
   marked.setOptions({
     breaks: true,
     gfm: true,
@@ -122,6 +125,34 @@
     }
   }
 
+  function handleContainerClick(event: MouseEvent) {
+    const target = event.target as HTMLElement | null;
+    if (!target || target.tagName !== 'IMG') return;
+    const img = target as HTMLImageElement;
+    // Skip checkbox-style or other icon-only images without a real source
+    const src = img.currentSrc || img.src;
+    if (!src) return;
+    event.preventDefault();
+    lightboxSrc = src;
+    lightboxAlt = img.alt || '';
+  }
+
+  function closeLightbox() {
+    lightboxSrc = null;
+    lightboxAlt = '';
+  }
+
+  $effect(() => {
+    if (!lightboxSrc) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeLightbox();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  });
+
   onMount(() => {
     const handleMessage = (event: MessageEvent<MessageToWebview>) => {
       const msg = event.data;
@@ -155,9 +186,21 @@
   });
 </script>
 
-<div class="markdown-body" bind:this={container}>
+<div class="markdown-body" bind:this={container} onclick={handleContainerClick} role="presentation">
   {@html render(content)}
 </div>
+
+{#if lightboxSrc}
+  <button
+    class="lightbox-overlay"
+    type="button"
+    aria-label="Close image preview"
+    onclick={closeLightbox}
+  >
+    <img src={lightboxSrc} alt={lightboxAlt} class="lightbox-image" />
+    <span class="lightbox-close" aria-hidden="true">×</span>
+  </button>
+{/if}
 
 <style>
   .markdown-body {
@@ -246,6 +289,52 @@
   .markdown-body :global(img) {
     max-width: 100%;
     border-radius: 4px;
+    cursor: zoom-in;
+  }
+
+  .lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 32px;
+    cursor: zoom-out;
+    border: none;
+    width: 100vw;
+    height: 100vh;
+    font: inherit;
+    color: inherit;
+  }
+
+  .lightbox-overlay:focus-visible {
+    outline: 2px solid var(--vscode-focusBorder, #007fd4);
+    outline-offset: -4px;
+  }
+
+  .lightbox-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+
+  .lightbox-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-size: 24px;
+    line-height: 36px;
+    text-align: center;
+    pointer-events: none;
   }
 
   .markdown-body :global(table) {

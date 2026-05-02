@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.2 — 2026-05-02
+
+- Add: click an image in an issue body or comment to open it full-size in a lightbox overlay. Close with the `×` button, by clicking the backdrop, or with `Esc`.
+
 ## 1.3.1 — 2026-04-30
 
 Security release — please update.
