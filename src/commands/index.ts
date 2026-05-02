@@ -7,6 +7,7 @@ import type { DetectedRepository } from '../git/RepositoryResolver';
 import { RepositoryResolver } from '../git/RepositoryResolver';
 import { GitOperations } from '../git/GitOperations';
 import { setSearchDescription } from '../extension';
+import { loadIssueTemplates, type IssueTemplate } from '../templates/IssueTemplates';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -81,9 +82,33 @@ export function registerCommands(
         return;
       }
 
+      const repo = getActiveRepository();
+      let template: IssueTemplate | null = null;
+      if (repo) {
+        const templates = await loadIssueTemplates(repo.rootPath, provider.platform);
+        if (templates.length > 0) {
+          type Item = vscode.QuickPickItem & { template: IssueTemplate | null };
+          const items: Item[] = [
+            { label: '$(file) Blank issue', description: 'Start from scratch', template: null },
+            ...templates.map<Item>((t) => ({
+              label: t.name,
+              description: t.about,
+              detail: t.title ? `Title: ${t.title}` : undefined,
+              template: t,
+            })),
+          ];
+          const picked = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Pick an issue template',
+          });
+          if (!picked) { return; }
+          template = picked.template;
+        }
+      }
+
       const title = await vscode.window.showInputBox({
         prompt: 'Issue Title',
         placeHolder: 'Enter issue title...',
+        value: template?.title ?? '',
         ignoreFocusOut: true,
       });
       if (!title) { return; }
@@ -91,6 +116,7 @@ export function registerCommands(
       const body = await vscode.window.showInputBox({
         prompt: 'Issue Description (optional)',
         placeHolder: 'Enter issue description...',
+        value: template?.body ?? '',
         ignoreFocusOut: true,
       });
 
@@ -100,6 +126,7 @@ export function registerCommands(
           title,
           body: body || '',
           assignees: currentUser ? [currentUser.login] : undefined,
+          labels: template?.labels.length ? template.labels : undefined,
         });
         vscode.window.showInformationMessage(`Issue #${issue.number} created`);
         treeDataProvider.refresh();
