@@ -115,6 +115,7 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand('gitIssues.filter', async () => {
       const currentFilter = treeDataProvider.getFilter();
+      const currentScope = treeDataProvider.getUserScope();
 
       const stateItems: vscode.QuickPickItem[] = [
         { label: 'Open', description: 'Show open issues', picked: currentFilter.state === 'open' },
@@ -138,6 +139,16 @@ export function registerCommands(
       });
       if (!selectedSort) { return; }
 
+      const scopeItems: vscode.QuickPickItem[] = [
+        { label: 'Everyone', description: 'Show issues from anyone', picked: currentScope === 'all' },
+        { label: 'Assigned to me', description: 'Only issues you are assigned to', picked: currentScope === 'assigned' },
+        { label: 'Created by me', description: 'Only issues you opened', picked: currentScope === 'created' },
+      ];
+      const selectedScope = await vscode.window.showQuickPick(scopeItems, {
+        placeHolder: 'Filter by user',
+      });
+      if (!selectedScope) { return; }
+
       const stateMap: Record<string, 'open' | 'closed' | 'all'> = {
         Open: 'open',
         Closed: 'closed',
@@ -148,12 +159,48 @@ export function registerCommands(
         Updated: 'updated',
         Comments: 'comments',
       };
+      const scopeMap: Record<string, 'all' | 'assigned' | 'created'> = {
+        'Everyone': 'all',
+        'Assigned to me': 'assigned',
+        'Created by me': 'created',
+      };
 
+      const scope = scopeMap[selectedScope.label];
       treeDataProvider.setFilter({
         state: stateMap[selected.label],
         sort: sortMap[selectedSort.label],
       });
+      treeDataProvider.setUserScope(scope);
+      await vscode.commands.executeCommand(
+        'setContext',
+        'gitIssues.userScope',
+        scope
+      );
     })
+  );
+
+  // Quick toggle "My Issues" — both ids do the same thing; we expose two
+  // command ids so that view/title can swap between an outline and a filled
+  // person icon depending on whether the filter is active.
+  const toggleMyIssues = async () => {
+    const me = treeDataProvider.getCurrentUserLogin();
+    if (!me) {
+      vscode.window.showInformationMessage(
+        'Git Issues: cannot determine current user — refresh the issue list first.'
+      );
+      return;
+    }
+    const next = treeDataProvider.getUserScope() === 'assigned' ? 'all' : 'assigned';
+    treeDataProvider.setUserScope(next);
+    await vscode.commands.executeCommand(
+      'setContext',
+      'gitIssues.userScope',
+      next
+    );
+  };
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitIssues.toggleMyIssues', toggleMyIssues),
+    vscode.commands.registerCommand('gitIssues.toggleMyIssuesActive', toggleMyIssues)
   );
 
   // Open in Browser

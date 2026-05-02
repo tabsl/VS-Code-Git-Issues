@@ -80,14 +80,16 @@ describe('registerCommands', () => {
     registerCommands(ctx, config, tdp as any, () => provider, () => null, reinitializeProvider);
   });
 
-  it('registers all 12 commands', () => {
-    expect(registeredCommands.size).toBe(12);
+  it('registers all 14 commands', () => {
+    expect(registeredCommands.size).toBe(14);
     expect(registeredCommands.has('gitIssues.refresh')).toBe(true);
     expect(registeredCommands.has('gitIssues.search')).toBe(true);
     expect(registeredCommands.has('gitIssues.clearSearch')).toBe(true);
     expect(registeredCommands.has('gitIssues.openIssue')).toBe(true);
     expect(registeredCommands.has('gitIssues.createIssue')).toBe(true);
     expect(registeredCommands.has('gitIssues.filter')).toBe(true);
+    expect(registeredCommands.has('gitIssues.toggleMyIssues')).toBe(true);
+    expect(registeredCommands.has('gitIssues.toggleMyIssuesActive')).toBe(true);
     expect(registeredCommands.has('gitIssues.openInBrowser')).toBe(true);
     expect(registeredCommands.has('gitIssues.createBranchFromIssue')).toBe(true);
     expect(registeredCommands.has('gitIssues.selectRepository')).toBe(true);

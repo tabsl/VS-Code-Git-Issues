@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add: full-text search in the sidebar — `Git Issues: Search Issues` (or the magnifier icon in the view title) filters loaded issues by title, `#number`, author login, label, or assignee. Active query is shown in the view description; clear via `Git Issues: Clear Search` or the title-bar icon.
+- Add: "My Issues" quick filter — click the person icon in the view title to limit the list to issues assigned to you (icon switches to filled when active). The full filter dialog (`Git Issues: Filter Issues`) gains an "Everyone / Assigned to me / Created by me" step.
 
 ## 1.3.3 — 2026-05-02
 

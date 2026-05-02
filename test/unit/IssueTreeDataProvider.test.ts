@@ -248,6 +248,67 @@ describe('IssueTreeDataProvider', () => {
     });
   });
 
+  describe('userScope', () => {
+    it('"assigned" filters to issues with current user as assignee', async () => {
+      const issues = [
+        makeIssue({ number: 1, assignees: [{ id: 1, login: 'user' }] }),
+        makeIssue({ number: 2, assignees: [{ id: 2, login: 'someone' }] }),
+        makeIssue({ number: 3 }),
+      ];
+      const provider = makeProvider(issues);
+      tdp.setState('ready', undefined, provider);
+      await new Promise(r => setTimeout(r, 50));
+
+      tdp.setUserScope('assigned');
+      const children = tdp.getChildren();
+      expect(children).toHaveLength(1);
+      expect((children[0] as IssueTreeItem).issue.number).toBe(1);
+    });
+
+    it('"created" filters to issues authored by current user', async () => {
+      const issues = [
+        makeIssue({ number: 1, author: { id: 1, login: 'user' } }),
+        makeIssue({ number: 2, author: { id: 2, login: 'someone' } }),
+      ];
+      const provider = makeProvider(issues);
+      tdp.setState('ready', undefined, provider);
+      await new Promise(r => setTimeout(r, 50));
+
+      tdp.setUserScope('created');
+      const children = tdp.getChildren();
+      expect(children).toHaveLength(1);
+      expect((children[0] as IssueTreeItem).issue.number).toBe(1);
+    });
+
+    it('"all" disables the user scope filter', async () => {
+      const issues = [
+        makeIssue({ number: 1, author: { id: 1, login: 'user' } }),
+        makeIssue({ number: 2, author: { id: 2, login: 'someone' } }),
+      ];
+      const provider = makeProvider(issues);
+      tdp.setState('ready', undefined, provider);
+      await new Promise(r => setTimeout(r, 50));
+
+      tdp.setUserScope('created');
+      expect(tdp.getChildren()).toHaveLength(1);
+      tdp.setUserScope('all');
+      expect(tdp.getChildren()).toHaveLength(2);
+    });
+
+    it('shows scope-specific empty message', async () => {
+      const issues = [makeIssue({ number: 1, author: { id: 9, login: 'someone' } })];
+      const provider = makeProvider(issues);
+      tdp.setState('ready', undefined, provider);
+      await new Promise(r => setTimeout(r, 50));
+
+      tdp.setUserScope('assigned');
+      expect((tdp.getChildren()[0] as MessageTreeItem).label).toBe('No issues assigned to you');
+
+      tdp.setUserScope('created');
+      expect((tdp.getChildren()[0] as MessageTreeItem).label).toBe('No issues created by you');
+    });
+  });
+
   describe('onDidChangeTreeData', () => {
     it('fires event on refresh', async () => {
       const listener = vi.fn();

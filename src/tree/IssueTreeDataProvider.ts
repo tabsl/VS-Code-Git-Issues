@@ -11,6 +11,8 @@ type ViewState =
   | { kind: 'no-token'; platform: 'github' | 'gitlab' }
   | { kind: 'ready'; provider: IssueProvider };
 
+export type UserScope = 'all' | 'assigned' | 'created';
+
 export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<TreeItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
@@ -22,6 +24,7 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
   private error: string | null = null;
   private currentUserLogin: string | undefined;
   private searchQuery = '';
+  private userScope: UserScope = 'all';
 
   constructor(
     defaultState: 'open' | 'closed' | 'all',
@@ -105,29 +108,58 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
     return this.searchQuery;
   }
 
+  setUserScope(scope: UserScope): void {
+    this.userScope = scope;
+    this._onDidChangeTreeData.fire(undefined);
+  }
+
+  getUserScope(): UserScope {
+    return this.userScope;
+  }
+
+  getCurrentUserLogin(): string | undefined {
+    return this.currentUserLogin;
+  }
+
   private getVisibleIssues(): Issue[] {
-    if (!this.searchQuery) {
-      return this.issues;
+    let result = this.issues;
+
+    if (this.userScope !== 'all' && this.currentUserLogin) {
+      const me = this.currentUserLogin;
+      result = result.filter((i) => {
+        if (this.userScope === 'assigned') {
+          return i.assignees.some((a) => a.login === me);
+        }
+        if (this.userScope === 'created') {
+          return i.author.login === me;
+        }
+        return true;
+      });
     }
-    const needle = this.searchQuery.toLowerCase();
-    return this.issues.filter((i) => {
-      if (i.title.toLowerCase().includes(needle)) {
-        return true;
-      }
-      if (`#${i.number}`.includes(needle) || String(i.number) === needle) {
-        return true;
-      }
-      if (i.author.login.toLowerCase().includes(needle)) {
-        return true;
-      }
-      if (i.labels.some((l) => l.name.toLowerCase().includes(needle))) {
-        return true;
-      }
-      if (i.assignees.some((a) => a.login.toLowerCase().includes(needle))) {
-        return true;
-      }
-      return false;
-    });
+
+    if (this.searchQuery) {
+      const needle = this.searchQuery.toLowerCase();
+      result = result.filter((i) => {
+        if (i.title.toLowerCase().includes(needle)) {
+          return true;
+        }
+        if (`#${i.number}`.includes(needle) || String(i.number) === needle) {
+          return true;
+        }
+        if (i.author.login.toLowerCase().includes(needle)) {
+          return true;
+        }
+        if (i.labels.some((l) => l.name.toLowerCase().includes(needle))) {
+          return true;
+        }
+        if (i.assignees.some((a) => a.login.toLowerCase().includes(needle))) {
+          return true;
+        }
+        return false;
+      });
+    }
+
+    return result;
   }
 
   getTreeItem(element: TreeItem): vscode.TreeItem {
@@ -189,12 +221,21 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
 
     const visible = this.getVisibleIssues();
     if (visible.length === 0) {
-      return [
-        new MessageTreeItem(
-          `No issues match "${this.searchQuery}"`,
-          { command: 'gitIssues.clearSearch', title: 'Clear search' }
-        ),
-      ];
+      if (this.searchQuery) {
+        return [
+          new MessageTreeItem(
+            `No issues match "${this.searchQuery}"`,
+            { command: 'gitIssues.clearSearch', title: 'Clear search' }
+          ),
+        ];
+      }
+      if (this.userScope === 'assigned') {
+        return [new MessageTreeItem('No issues assigned to you')];
+      }
+      if (this.userScope === 'created') {
+        return [new MessageTreeItem('No issues created by you')];
+      }
+      return [new MessageTreeItem('No issues found')];
     }
 
     if (this.filter.state === 'all') {

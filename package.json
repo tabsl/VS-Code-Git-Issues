@@ -83,6 +83,18 @@
         "category": "Git Issues"
       },
       {
+        "command": "gitIssues.toggleMyIssues",
+        "title": "Toggle My Issues",
+        "icon": "$(person)",
+        "category": "Git Issues"
+      },
+      {
+        "command": "gitIssues.toggleMyIssuesActive",
+        "title": "My Issues (active) — click to show all",
+        "icon": "$(person-filled)",
+        "category": "Git Issues"
+      },
+      {
         "command": "gitIssues.openIssue",
         "title": "Open Issue",
         "category": "Git Issues"
@@ -144,14 +156,24 @@
           "group": "navigation@3"
         },
         {
+          "command": "gitIssues.toggleMyIssues",
+          "when": "view == gitIssues && gitIssues.userScope != 'assigned'",
+          "group": "navigation@4"
+        },
+        {
+          "command": "gitIssues.toggleMyIssuesActive",
+          "when": "view == gitIssues && gitIssues.userScope == 'assigned'",
+          "group": "navigation@4"
+        },
+        {
           "command": "gitIssues.filter",
           "when": "view == gitIssues",
-          "group": "navigation@4"
+          "group": "navigation@5"
         },
         {
           "command": "gitIssues.selectRepository",
           "when": "view == gitIssues && gitIssues.multipleRepositories",
-          "group": "navigation@5"
+          "group": "navigation@6"
         }
       ],
       "view/item/context": [
