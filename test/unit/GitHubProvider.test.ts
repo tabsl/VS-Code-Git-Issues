@@ -26,6 +26,9 @@ vi.mock('@octokit/rest', () => {
         deleteForIssue: vi.fn(),
         deleteForIssueComment: vi.fn(),
       },
+      search: {
+        issuesAndPullRequests: vi.fn().mockResolvedValue({ data: { items: [] } }),
+      },
       users: {
         getAuthenticated: vi.fn(),
       },

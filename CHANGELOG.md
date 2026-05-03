@@ -5,6 +5,7 @@
 - Add: interactive task-list checkboxes in the issue body. Clicking `- [ ]` flips the source marker and persists via `updateIssue`; checkboxes inside fenced code blocks stay read-only.
 - Add: emoji reactions on issues and comments (👍 👎 😄 🎉 😕 ❤️ 🚀 👀). Click an existing reaction chip to toggle yours, or use the "😊+" picker for new ones. Works for GitHub (native) and GitLab (with emoji-slug translation between `+1` ↔ `thumbsup` etc.).
 - Add: edit and delete your own comments. Each comment authored by the current user gets `Edit` / `Delete` actions in the header. Edit reuses the same Markdown editor (with attach / slash-command / preview tabs); delete asks for confirmation. Task-list checkboxes inside comments you own are now also clickable.
+- Add: linked Pull Requests / Merge Requests panel between the issue body and the comment thread. GitHub uses `is:pr in:title,body #N` search; GitLab uses the dedicated `allRelatedMergeRequests` endpoint. Each entry shows status (Open / Draft / Merged / Closed), reference (`#N` / `!N`), title and author, and opens externally on click.
 
 ## 1.4.0 — 2026-05-03
 

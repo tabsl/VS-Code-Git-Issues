@@ -36,6 +36,7 @@ function makeProvider(issues: Issue[] = []): IssueProvider {
     listAssignees: vi.fn(),
     toggleIssueReaction: vi.fn(),
     toggleCommentReaction: vi.fn(),
+    listLinkedPullRequests: vi.fn(),
     getCurrentUser: vi.fn().mockResolvedValue({ id: 1, login: 'user' }),
     getIssueUrl: vi.fn(),
     getRepositoryInfo: vi.fn().mockReturnValue({ owner: 'o', repo: 'r', platform: 'github', baseUrl: '' }),

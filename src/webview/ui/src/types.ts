@@ -35,6 +35,14 @@ export interface Reaction {
   meReacted: boolean;
 }
 
+export interface LinkedPullRequest {
+  number: number;
+  title: string;
+  state: 'open' | 'closed' | 'merged' | 'draft';
+  url: string;
+  author: User;
+}
+
 export interface IssueDetail {
   number: number;
   title: string;
@@ -60,7 +68,7 @@ export interface RepositoryInfo {
 }
 
 export type MessageToWebview =
-  | { type: 'issueLoaded'; issue: IssueDetail; labels: Label[]; assignees: User[]; repositoryInfo: RepositoryInfo; currentUserLogin?: string }
+  | { type: 'issueLoaded'; issue: IssueDetail; labels: Label[]; assignees: User[]; repositoryInfo: RepositoryInfo; currentUserLogin?: string; linkedPullRequests?: LinkedPullRequest[] }
   | { type: 'commentAdded'; comment: Comment }
   | { type: 'issueUpdated'; issue: IssueDetail }
   | { type: 'editComplete' }
@@ -89,7 +97,8 @@ export type MessageToExtension =
   | { type: 'toggleIssueReaction'; content: ReactionContent }
   | { type: 'toggleCommentReaction'; commentId: number; content: ReactionContent }
   | { type: 'updateComment'; commentId: number; body: string }
-  | { type: 'deleteComment'; commentId: number };
+  | { type: 'deleteComment'; commentId: number }
+  | { type: 'openExternal'; url: string };
 
 export interface VsCodeApi {
   postMessage(message: MessageToExtension): void;

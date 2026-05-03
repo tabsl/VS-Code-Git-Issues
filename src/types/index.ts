@@ -101,3 +101,11 @@ export interface FileUploadResult {
   url: string;
   alt: string;
 }
+
+export interface LinkedPullRequest {
+  number: number;
+  title: string;
+  state: 'open' | 'closed' | 'merged' | 'draft';
+  url: string;
+  author: User;
+}

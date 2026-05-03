@@ -13,6 +13,7 @@ import type {
   RepositoryInfo,
   Reaction,
   ReactionContent,
+  LinkedPullRequest,
 } from '../types';
 
 const REACTION_CONTENTS: ReactionContent[] = [
@@ -141,6 +142,35 @@ export class GitHubProvider implements IssueProvider {
         content,
       });
     }
+  }
+
+  async listLinkedPullRequests(issueNumber: number): Promise<LinkedPullRequest[]> {
+    // GitHub's REST API doesn't expose "PRs that close this issue" directly.
+    // The search API is the closest pragmatic approach: any PR mentioning
+    // `#N` in title or body. False positives are possible but rare.
+    const q = `repo:${this.owner}/${this.repo} is:pr ${issueNumber} in:title,body`;
+    const result = await this.octokit.rest.search.issuesAndPullRequests({
+      q,
+      per_page: 30,
+    }).catch(() => ({ data: { items: [] } }));
+    return result.data.items
+      .filter((item: any) => item.pull_request)
+      .map((item: any) => {
+        const merged = Boolean(item.pull_request?.merged_at);
+        const draft = Boolean(item.draft);
+        const state: LinkedPullRequest['state'] = draft && item.state === 'open'
+          ? 'draft'
+          : item.state === 'closed'
+            ? (merged ? 'merged' : 'closed')
+            : 'open';
+        return {
+          number: item.number,
+          title: item.title,
+          state,
+          url: item.html_url,
+          author: this.mapUser(item.user),
+        };
+      });
   }
 
   async toggleCommentReaction(commentId: number, content: ReactionContent): Promise<void> {

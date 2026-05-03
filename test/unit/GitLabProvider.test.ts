@@ -8,6 +8,7 @@ const mockGitlab = {
     show: vi.fn(),
     create: vi.fn(),
     edit: vi.fn(),
+    allRelatedMergeRequests: vi.fn().mockResolvedValue([]),
   },
   IssueNotes: {
     all: vi.fn(),

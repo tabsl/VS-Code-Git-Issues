@@ -14,6 +14,7 @@ import type {
   FileUploadResult,
   Reaction,
   ReactionContent,
+  LinkedPullRequest,
 } from '../types';
 
 // GitLab uses different emoji slugs than GitHub. The neutral wire format on
@@ -138,6 +139,34 @@ export class GitLabProvider implements IssueProvider {
     } else {
       await this.gitlab.IssueAwardEmojis.award(this.projectPath, issueNumber, slug);
     }
+  }
+
+  async listLinkedPullRequests(issueNumber: number): Promise<LinkedPullRequest[]> {
+    // GitLab exposes a dedicated endpoint for MRs that mention or are linked
+    // to a given issue.
+    const mrs = await this.gitlab.Issues.allRelatedMergeRequests(this.projectPath, issueNumber)
+      .then((m) => m as any[])
+      .catch(() => [] as any[]);
+    return mrs.map((mr) => {
+      const draft = Boolean(mr.draft || mr.work_in_progress);
+      let state: LinkedPullRequest['state'];
+      if (mr.state === 'merged') {
+        state = 'merged';
+      } else if (mr.state === 'closed') {
+        state = 'closed';
+      } else if (draft) {
+        state = 'draft';
+      } else {
+        state = 'open';
+      }
+      return {
+        number: mr.iid,
+        title: mr.title,
+        state,
+        url: mr.web_url,
+        author: this.mapUser(mr.author),
+      };
+    });
   }
 
   async toggleCommentReaction(commentId: number, content: ReactionContent): Promise<void> {

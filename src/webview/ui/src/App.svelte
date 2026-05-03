@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { IssueDetail, Comment, Label, User, RepositoryInfo, MessageToWebview } from './types';
+  import type { IssueDetail, Comment, Label, User, RepositoryInfo, LinkedPullRequest, MessageToWebview } from './types';
   import IssueView from './components/IssueDetail.svelte';
   import IssueForm from './components/IssueForm.svelte';
 
@@ -9,6 +9,7 @@
   let repoInfo: RepositoryInfo | null = $state(null);
   let editing = $state(false);
   let currentUserLogin: string | undefined = $state(undefined);
+  let linkedPullRequests: LinkedPullRequest[] = $state([]);
 
   window.addEventListener('message', (event: MessageEvent<MessageToWebview>) => {
     const msg = event.data;
@@ -19,6 +20,7 @@
         allAssignees = msg.assignees;
         repoInfo = msg.repositoryInfo;
         currentUserLogin = msg.currentUserLogin;
+        linkedPullRequests = msg.linkedPullRequests ?? [];
         editing = false;
         break;
       case 'commentAdded':
@@ -54,7 +56,7 @@
     {#if editing}
       <IssueForm {issue} labels={allLabels} assignees={allAssignees} repositoryInfo={repoInfo} oncancel={handleCancel} />
     {:else}
-      <IssueView {issue} repositoryInfo={repoInfo} {currentUserLogin} onedit={handleEdit} />
+      <IssueView {issue} repositoryInfo={repoInfo} {currentUserLogin} {linkedPullRequests} onedit={handleEdit} />
     {/if}
   {:else}
     <div class="loading">Loading issue...</div>

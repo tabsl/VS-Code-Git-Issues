@@ -11,6 +11,7 @@ import type {
   RepositoryInfo,
   FileUploadResult,
   ReactionContent,
+  LinkedPullRequest,
 } from '../types';
 
 export interface IssueProvider {
@@ -45,6 +46,9 @@ export interface IssueProvider {
   // Reactions
   toggleIssueReaction(issueNumber: number, content: ReactionContent): Promise<void>;
   toggleCommentReaction(commentId: number, content: ReactionContent): Promise<void>;
+
+  // Linked merge / pull requests
+  listLinkedPullRequests(issueNumber: number): Promise<LinkedPullRequest[]>;
 
   // File upload
   supportsFileUpload(): boolean;

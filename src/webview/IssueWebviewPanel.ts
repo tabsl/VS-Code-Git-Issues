@@ -78,6 +78,12 @@ export class IssueWebviewPanel {
         return [];
       });
       const me = await this.provider.getCurrentUser().catch(() => null);
+      const linkedPullRequests = await this.provider
+        .listLinkedPullRequests(this.issueNumber)
+        .catch((err) => {
+          console.warn('Failed to load linked PRs/MRs:', err);
+          return [];
+        });
       this.panel.title = `Issue #${issue.number}: ${issue.title}`;
       this.panel.webview.postMessage({
         type: 'issueLoaded',
@@ -86,6 +92,7 @@ export class IssueWebviewPanel {
         assignees,
         repositoryInfo: this.provider.getRepositoryInfo(),
         currentUserLogin: me?.login,
+        linkedPullRequests,
       });
       return true;
     } catch (err) {
@@ -138,6 +145,9 @@ export class IssueWebviewPanel {
             break;
           case 'deleteComment':
             await this.handleDeleteComment(msg.commentId);
+            break;
+          case 'openExternal':
+            this.handleOpenExternal(msg.url);
             break;
         }
       },
@@ -197,6 +207,21 @@ export class IssueWebviewPanel {
   private handleOpenInBrowser(): void {
     const url = this.provider.getIssueUrl(this.issueNumber);
     vscode.env.openExternal(vscode.Uri.parse(url));
+  }
+
+  private handleOpenExternal(url: string): void {
+    // Validate URL before delegating to the OS — only http/https. Anything
+    // else (file://, javascript:, custom schemes) is rejected.
+    let parsed: vscode.Uri;
+    try {
+      parsed = vscode.Uri.parse(url, true);
+    } catch {
+      return;
+    }
+    if (parsed.scheme !== 'https' && parsed.scheme !== 'http') {
+      return;
+    }
+    vscode.env.openExternal(parsed);
   }
 
   private async handleCreateBranch(): Promise<void> {

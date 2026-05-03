@@ -1,21 +1,24 @@
 <script lang="ts">
-  import type { IssueDetail, RepositoryInfo, ReactionContent } from '../types';
+  import type { IssueDetail, RepositoryInfo, ReactionContent, LinkedPullRequest } from '../types';
   import { postMessage } from '../stores/vscodeApi';
   import { toggleTaskInMarkdown } from '../lib/taskList';
   import CommentThread from './CommentThread.svelte';
   import CommentForm from './CommentForm.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
   import ReactionBar from './ReactionBar.svelte';
+  import LinkedPullRequests from './LinkedPullRequests.svelte';
 
   let {
     issue,
     repositoryInfo,
     currentUserLogin,
+    linkedPullRequests = [],
     onedit,
   }: {
     issue: IssueDetail;
     repositoryInfo: RepositoryInfo | null;
     currentUserLogin?: string;
+    linkedPullRequests?: LinkedPullRequest[];
     onedit: () => void;
   } = $props();
 
@@ -126,6 +129,8 @@
     {/if}
     <ReactionBar reactions={issue.reactions ?? []} onToggle={toggleIssueReaction} />
   </section>
+
+  <LinkedPullRequests items={linkedPullRequests} platform={repositoryInfo?.platform || 'github'} />
 
   <section class="comments-section">
     <h2>Comments ({issue.commentCount})</h2>
