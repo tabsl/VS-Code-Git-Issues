@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import type { IssueProvider } from '../providers/IssueProvider';
 import type { Issue, ListIssuesOptions } from '../types';
 import { IssueTreeItem, IssueGroupTreeItem, MessageTreeItem } from './IssueTreeItem';
+import type { IssueCache } from '../cache/IssueCache';
 
 type TreeItem = IssueTreeItem | IssueGroupTreeItem | MessageTreeItem;
 
@@ -28,7 +29,8 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
 
   constructor(
     defaultState: 'open' | 'closed' | 'all',
-    defaultSort: 'created' | 'updated' | 'comments'
+    defaultSort: 'created' | 'updated' | 'comments',
+    private readonly cache: IssueCache | null = null
   ) {
     this.filter.state = defaultState;
     this.filter.sort = defaultSort;
@@ -70,20 +72,47 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
       return;
     }
 
-    this.loading = true;
-    this.error = null;
-    this._onDidChangeTreeData.fire(undefined);
+    const provider = this.viewState.provider;
+
+    let paintedFromCache = false;
+    if (this.cache) {
+      const cached = this.cache.read(provider.getRepositoryInfo(), this.filter);
+      if (cached && cached.issues.length > 0) {
+        this.issues = cached.issues;
+        this.error = null;
+        this.loading = false;
+        paintedFromCache = true;
+        this._onDidChangeTreeData.fire(undefined);
+      }
+    }
+
+    if (!paintedFromCache) {
+      this.loading = true;
+      this.error = null;
+      this._onDidChangeTreeData.fire(undefined);
+    }
 
     try {
       if (!this.currentUserLogin) {
-        this.currentUserLogin = await this.viewState.provider.getCurrentUser()
+        this.currentUserLogin = await provider.getCurrentUser()
           .then((u) => u.login)
           .catch(() => undefined);
       }
-      this.issues = await this.viewState.provider.listIssues(this.filter);
+      const fresh = await provider.listIssues(this.filter);
+      this.issues = fresh;
+      this.error = null;
+      if (this.cache) {
+        await this.cache
+          .write(provider.getRepositoryInfo(), this.filter, fresh)
+          .catch(() => undefined);
+      }
     } catch (err) {
-      this.error = err instanceof Error ? err.message : String(err);
-      this.issues = [];
+      // Keep cached issues visible on transient network errors so the user
+      // is never left staring at an empty sidebar after a flaky refresh.
+      if (!paintedFromCache) {
+        this.error = err instanceof Error ? err.message : String(err);
+        this.issues = [];
+      }
     } finally {
       this.loading = false;
       this._onDidChangeTreeData.fire(undefined);

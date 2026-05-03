@@ -9,6 +9,7 @@ import type { IssueProvider } from './providers/IssueProvider';
 import { extractIssueNumberFromBranch } from './git/BranchIssueLinker';
 import { IssueStatusBarItem } from './ui/StatusBarItem';
 import { NotificationTracker } from './ui/NotificationTracker';
+import { IssueCache } from './cache/IssueCache';
 
 const ACTIVE_REPO_KEY = 'gitIssues.activeRepositoryPath';
 
@@ -24,9 +25,13 @@ export async function activate(context: vscode.ExtensionContext) {
   const config = new Configuration(context);
 
   // TreeView
+  const issueCache = config.isOfflineCacheEnabled()
+    ? new IssueCache(context.globalState)
+    : null;
   const treeDataProvider = new IssueTreeDataProvider(
     config.getDefaultState(),
-    config.getDefaultSort()
+    config.getDefaultSort(),
+    issueCache
   );
   treeView = vscode.window.createTreeView('gitIssues', {
     treeDataProvider,

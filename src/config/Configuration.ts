@@ -49,6 +49,10 @@ export class Configuration {
     return this.get<number>('autoRefreshInterval', 0);
   }
 
+  isOfflineCacheEnabled(): boolean {
+    return this.get<boolean>('offlineCache.enabled', true);
+  }
+
   async setGitHubToken(token: string): Promise<void> {
     await this.context.secrets.store(GITHUB_TOKEN_SECRET_KEY, token);
   }

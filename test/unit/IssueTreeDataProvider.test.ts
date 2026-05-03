@@ -3,6 +3,7 @@ import { IssueTreeDataProvider } from '../../src/tree/IssueTreeDataProvider';
 import { IssueTreeItem, IssueGroupTreeItem, MessageTreeItem } from '../../src/tree/IssueTreeItem';
 import type { IssueProvider } from '../../src/providers/IssueProvider';
 import type { Issue } from '../../src/types';
+import { IssueCache } from '../../src/cache/IssueCache';
 
 function makeIssue(overrides: Partial<Issue> = {}): Issue {
   return {
@@ -312,6 +313,68 @@ describe('IssueTreeDataProvider', () => {
 
       tdp.setUserScope('created');
       expect((tdp.getChildren()[0] as MessageTreeItem).label).toBe('No issues created by you');
+    });
+  });
+
+  describe('offline cache', () => {
+    function memoryMemento() {
+      const map = new Map<string, unknown>();
+      return {
+        keys: () => [...map.keys()],
+        get: <T>(k: string, d?: T) => (map.has(k) ? (map.get(k) as T) : d),
+        update: async (k: string, v: unknown) => {
+          if (v === undefined) { map.delete(k); }
+          else { map.set(k, JSON.parse(JSON.stringify(v))); }
+        },
+        setKeysForSync: () => {},
+      } as any;
+    }
+
+    it('paints cached issues immediately and skips the loading message', async () => {
+      const cache = new IssueCache(memoryMemento());
+      const cached = makeIssue({ number: 42, title: 'From cache' });
+      const repoInfo = { owner: 'o', repo: 'r', platform: 'github' as const, baseUrl: '' };
+      await cache.write(repoInfo, { state: 'open', sort: 'created' }, [cached]);
+
+      const cachedTdp = new IssueTreeDataProvider('open', 'created', cache);
+      // Provider that delays its network response so we can observe the cache paint first.
+      const fresh = makeIssue({ number: 100, title: 'From network' });
+      const provider: IssueProvider = {
+        ...makeProvider([fresh]),
+        listIssues: vi.fn(() =>
+          new Promise((resolve) => setTimeout(() => resolve([fresh]), 30))
+        ) as any,
+      };
+
+      cachedTdp.setState('ready', undefined, provider);
+      // Allow the cache-first paint to flush.
+      await new Promise(r => setTimeout(r, 0));
+      const duringLoad = cachedTdp.getChildren();
+      expect(duringLoad).toHaveLength(1);
+      expect((duringLoad[0] as IssueTreeItem).issue.number).toBe(42);
+
+      // Wait for the network response to overwrite the cache.
+      await new Promise(r => setTimeout(r, 60));
+      const afterFetch = cachedTdp.getChildren();
+      expect((afterFetch[0] as IssueTreeItem).issue.number).toBe(100);
+    });
+
+    it('keeps cached issues visible when the network fetch fails', async () => {
+      const cache = new IssueCache(memoryMemento());
+      const cached = makeIssue({ number: 42 });
+      const repoInfo = { owner: 'o', repo: 'r', platform: 'github' as const, baseUrl: '' };
+      await cache.write(repoInfo, { state: 'open', sort: 'created' }, [cached]);
+
+      const cachedTdp = new IssueTreeDataProvider('open', 'created', cache);
+      const provider = makeProvider();
+      (provider.listIssues as any).mockRejectedValue(new Error('offline'));
+
+      cachedTdp.setState('ready', undefined, provider);
+      await new Promise(r => setTimeout(r, 50));
+
+      const children = cachedTdp.getChildren();
+      expect(children).toHaveLength(1);
+      expect((children[0] as IssueTreeItem).issue.number).toBe(42);
     });
   });
 

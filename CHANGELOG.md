@@ -4,6 +4,8 @@
 
 Major release: deeper issue interactions (task lists, reactions, comment editing, linked PR/MR panel) and a split-view layout. No breaking config changes; existing 1.4.x settings keep working.
 
+- Add: offline cache for the issue list. The sidebar paints the last known issues instantly on startup or repo switch and refreshes them in the background, so VS Code reloads no longer wait on a GitHub/GitLab round-trip. Cached issues also remain visible when a refresh fails (e.g. offline or rate-limited) instead of clearing the view to an error message. Toggle via `gitIssues.offlineCache.enabled` (default on); the cache lives in `globalState`, is scoped per repository and active filter, and is capped at 20 most-recent entries.
+
 - Security (defense-in-depth): allowlist `content` in `toggleIssueReaction` / `toggleCommentReaction` handlers and the fields accepted by `handleUpdateIssue` so a compromised webview can never widen the surface beyond what the UI legitimately sends. GitHub/GitLab APIs already enforced this server-side; this adds a second client-side gate.
 - Security (defense-in-depth): `openExternal` now requires the URL host to match the configured provider base URL (github.com / gitlab.* / self-hosted GitLab) on top of the existing `http(s)` scheme check.
 - Internal: replace post-sanitize regex on rendered markdown with a DOM-based `disabled`-strip for interactive task-list checkboxes — keeps DOMPurify the single source of truth for rendered HTML.

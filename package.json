@@ -259,6 +259,11 @@
           "minimum": 0,
           "description": "Auto-refresh interval in seconds (0 to disable)"
         },
+        "gitIssues.offlineCache.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Cache the issue list locally so the sidebar shows the last known issues instantly on startup, then refreshes them in the background."
+        },
         "gitIssues.autoLinkBranchToIssue": {
           "type": "boolean",
           "default": true,
