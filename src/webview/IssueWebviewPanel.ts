@@ -125,6 +125,12 @@ export class IssueWebviewPanel {
           case 'pickSlashCommand':
             await this.handlePickSlashCommand(msg.requestId);
             break;
+          case 'toggleIssueReaction':
+            await this.handleToggleIssueReaction(msg.content);
+            break;
+          case 'toggleCommentReaction':
+            await this.handleToggleCommentReaction(msg.commentId, msg.content);
+            break;
         }
       },
       null,
@@ -360,6 +366,28 @@ export class IssueWebviewPanel {
       requestId,
       snippet: picked.snippet,
     });
+  }
+
+  private async handleToggleIssueReaction(content: string): Promise<void> {
+    try {
+      await this.provider.toggleIssueReaction(this.issueNumber, content as never);
+      await this.loadIssue();
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        `Failed to toggle reaction: ${err instanceof Error ? err.message : err}`
+      );
+    }
+  }
+
+  private async handleToggleCommentReaction(commentId: number, content: string): Promise<void> {
+    try {
+      await this.provider.toggleCommentReaction(commentId, content as never);
+      await this.loadIssue();
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        `Failed to toggle reaction: ${err instanceof Error ? err.message : err}`
+      );
+    }
   }
 
   private async handleProxyImage(requestId: string, imageUrl: string): Promise<void> {

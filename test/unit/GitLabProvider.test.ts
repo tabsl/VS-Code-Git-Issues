@@ -22,6 +22,19 @@ const mockGitlab = {
   ProjectMembers: {
     all: vi.fn(),
   },
+  ProjectMilestones: {
+    all: vi.fn().mockResolvedValue([]),
+  },
+  IssueAwardEmojis: {
+    all: vi.fn().mockResolvedValue([]),
+    award: vi.fn(),
+    remove: vi.fn(),
+  },
+  IssueNoteAwardEmojis: {
+    all: vi.fn().mockResolvedValue([]),
+    award: vi.fn(),
+    remove: vi.fn(),
+  },
 };
 
 vi.mock('@gitbeaker/rest', () => ({

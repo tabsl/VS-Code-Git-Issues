@@ -11,7 +11,20 @@ import type {
   UpdateIssueData,
   ListIssuesOptions,
   RepositoryInfo,
+  Reaction,
+  ReactionContent,
 } from '../types';
+
+const REACTION_CONTENTS: ReactionContent[] = [
+  '+1',
+  '-1',
+  'laugh',
+  'hooray',
+  'confused',
+  'heart',
+  'rocket',
+  'eyes',
+];
 
 export class GitHubProvider implements IssueProvider {
   readonly platform = 'github' as const;
@@ -52,7 +65,10 @@ export class GitHubProvider implements IssueProvider {
   }
 
   async getIssue(issueNumber: number): Promise<IssueDetail> {
-    const [issueResponse, commentsResponse] = await Promise.all([
+    const me = await this.getCurrentUser().catch(() => null);
+    const meLogin = me?.login;
+
+    const [issueResponse, commentsResponse, issueReactions] = await Promise.all([
       this.octokit.rest.issues.get({
         owner: this.owner,
         repo: this.repo,
@@ -63,16 +79,94 @@ export class GitHubProvider implements IssueProvider {
         repo: this.repo,
         issue_number: issueNumber,
       }),
+      this.octokit.rest.reactions.listForIssue({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+        per_page: 100,
+      }).catch(() => ({ data: [] as Array<{ content: string; user: { login: string } | null }> })),
     ]);
 
     const issue = issueResponse.data;
+    const rawComments = commentsResponse.data;
+
+    const commentReactions = await Promise.all(
+      rawComments.map((c) =>
+        this.octokit.rest.reactions
+          .listForIssueComment({
+            owner: this.owner,
+            repo: this.repo,
+            comment_id: c.id,
+            per_page: 100,
+          })
+          .then((r) => r.data)
+          .catch(() => [] as Array<{ content: string; user: { login: string } | null }>)
+      )
+    );
+
     return {
       ...this.mapIssue(issue),
       body: issue.body || '',
-      comments: commentsResponse.data.map((c) => this.mapComment(c)),
+      reactions: aggregateReactions(issueReactions.data, meLogin),
+      comments: rawComments.map((c, i) => ({
+        ...this.mapComment(c),
+        reactions: aggregateReactions(commentReactions[i], meLogin),
+      })),
       closedAt: issue.closed_at ? new Date(issue.closed_at) : undefined,
       closedBy: issue.closed_by ? this.mapUser(issue.closed_by) : undefined,
     };
+  }
+
+  async toggleIssueReaction(issueNumber: number, content: ReactionContent): Promise<void> {
+    const me = await this.getCurrentUser();
+    const all = await this.octokit.rest.reactions.listForIssue({
+      owner: this.owner,
+      repo: this.repo,
+      issue_number: issueNumber,
+      per_page: 100,
+    });
+    const mine = all.data.find((r) => r.user?.login === me.login && r.content === content);
+    if (mine) {
+      await this.octokit.rest.reactions.deleteForIssue({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+        reaction_id: mine.id,
+      });
+    } else {
+      await this.octokit.rest.reactions.createForIssue({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+        content,
+      });
+    }
+  }
+
+  async toggleCommentReaction(commentId: number, content: ReactionContent): Promise<void> {
+    const me = await this.getCurrentUser();
+    const all = await this.octokit.rest.reactions.listForIssueComment({
+      owner: this.owner,
+      repo: this.repo,
+      comment_id: commentId,
+      per_page: 100,
+    });
+    const mine = all.data.find((r) => r.user?.login === me.login && r.content === content);
+    if (mine) {
+      await this.octokit.rest.reactions.deleteForIssueComment({
+        owner: this.owner,
+        repo: this.repo,
+        comment_id: commentId,
+        reaction_id: mine.id,
+      });
+    } else {
+      await this.octokit.rest.reactions.createForIssueComment({
+        owner: this.owner,
+        repo: this.repo,
+        comment_id: commentId,
+        content,
+      });
+    }
   }
 
   async createIssue(data: CreateIssueData): Promise<Issue> {
@@ -216,4 +310,33 @@ export class GitHubProvider implements IssueProvider {
       avatarUrl: data?.avatar_url,
     };
   }
+}
+
+interface RawReaction {
+  content: string;
+  user: { login: string } | null;
+}
+
+function aggregateReactions(raw: RawReaction[], meLogin: string | undefined): Reaction[] {
+  const counters = new Map<ReactionContent, { count: number; mine: boolean }>(
+    REACTION_CONTENTS.map((c) => [c, { count: 0, mine: false }])
+  );
+  for (const r of raw) {
+    const slot = counters.get(r.content as ReactionContent);
+    if (!slot) {
+      continue;
+    }
+    slot.count++;
+    if (meLogin && r.user?.login === meLogin) {
+      slot.mine = true;
+    }
+  }
+  const out: Reaction[] = [];
+  for (const c of REACTION_CONTENTS) {
+    const slot = counters.get(c)!;
+    if (slot.count > 0) {
+      out.push({ content: c, count: slot.count, meReacted: slot.mine });
+    }
+  }
+  return out;
 }

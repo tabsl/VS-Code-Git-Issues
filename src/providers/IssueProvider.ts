@@ -10,6 +10,7 @@ import type {
   ListIssuesOptions,
   RepositoryInfo,
   FileUploadResult,
+  ReactionContent,
 } from '../types';
 
 export interface IssueProvider {
@@ -38,6 +39,10 @@ export interface IssueProvider {
 
   // User
   getCurrentUser(): Promise<User>;
+
+  // Reactions
+  toggleIssueReaction(issueNumber: number, content: ReactionContent): Promise<void>;
+  toggleCommentReaction(commentId: number, content: ReactionContent): Promise<void>;
 
   // File upload
   supportsFileUpload(): boolean;

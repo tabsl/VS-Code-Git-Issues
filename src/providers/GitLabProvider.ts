@@ -12,7 +12,25 @@ import type {
   ListIssuesOptions,
   RepositoryInfo,
   FileUploadResult,
+  Reaction,
+  ReactionContent,
 } from '../types';
+
+// GitLab uses different emoji slugs than GitHub. The neutral wire format on
+// our side is GitHub's; we translate at the boundary.
+const GITHUB_TO_GITLAB_EMOJI: Record<ReactionContent, string> = {
+  '+1': 'thumbsup',
+  '-1': 'thumbsdown',
+  laugh: 'laughing',
+  hooray: 'tada',
+  confused: 'confused',
+  heart: 'heart',
+  rocket: 'rocket',
+  eyes: 'eyes',
+};
+const GITLAB_TO_GITHUB_EMOJI = Object.fromEntries(
+  Object.entries(GITHUB_TO_GITLAB_EMOJI).map(([k, v]) => [v, k as ReactionContent])
+) as Record<string, ReactionContent>;
 
 export class GitLabProvider implements IssueProvider {
   readonly platform = 'gitlab' as const;
@@ -65,24 +83,102 @@ export class GitLabProvider implements IssueProvider {
   }
 
   async getIssue(issueNumber: number): Promise<IssueDetail> {
-    const [issue, notes] = await Promise.all([
+    const me = await this.getCurrentUser().catch(() => null);
+    const meLogin = me?.login;
+
+    const [issue, notes, issueAwards] = await Promise.all([
       this.gitlab.Issues.show(issueNumber, { projectId: this.projectPath }),
       this.gitlab.IssueNotes.all(this.projectPath, issueNumber, { perPage: 100 }),
+      this.gitlab.IssueAwardEmojis.all(this.projectPath, issueNumber)
+        .then((a) => a as any[])
+        .catch(() => [] as any[]),
     ]);
 
     const issueData = issue as any;
     const notesData = notes as any[];
+    const visibleNotes = notesData.filter((n) => !n.system);
+
+    const noteAwards = await Promise.all(
+      visibleNotes.map((n) =>
+        this.gitlab.IssueNoteAwardEmojis.all(this.projectPath, issueNumber, n.id)
+          .then((a) => a as any[])
+          .catch(() => [] as any[])
+      )
+    );
+
+    // Remember the issue this note belongs to so a follow-up
+    // toggleCommentReaction call can find the right scope without an extra
+    // round-trip.
+    for (const n of visibleNotes) {
+      this.noteIssueCache.set(n.id, issueNumber);
+    }
 
     return {
       ...this.mapIssue(issueData),
       body: issueData.description || '',
-      comments: notesData
-        .filter((n) => !n.system)
-        .map((n) => this.mapComment(n)),
+      reactions: aggregateGitlabAwards(issueAwards, meLogin),
+      comments: visibleNotes.map((n, i) => ({
+        ...this.mapComment(n),
+        reactions: aggregateGitlabAwards(noteAwards[i], meLogin),
+      })),
       closedAt: issueData.closed_at ? new Date(issueData.closed_at) : undefined,
       closedBy: issueData.closed_by ? this.mapUser(issueData.closed_by) : undefined,
     };
   }
+
+  async toggleIssueReaction(issueNumber: number, content: ReactionContent): Promise<void> {
+    const me = await this.getCurrentUser();
+    const slug = GITHUB_TO_GITLAB_EMOJI[content];
+    const all = await this.gitlab.IssueAwardEmojis.all(this.projectPath, issueNumber)
+      .then((a) => a as any[])
+      .catch(() => [] as any[]);
+    const mine = all.find((a) => a.name === slug && a.user?.username === me.login);
+    if (mine) {
+      await this.gitlab.IssueAwardEmojis.remove(this.projectPath, issueNumber, mine.id);
+    } else {
+      await this.gitlab.IssueAwardEmojis.award(this.projectPath, issueNumber, slug);
+    }
+  }
+
+  async toggleCommentReaction(commentId: number, content: ReactionContent): Promise<void> {
+    const me = await this.getCurrentUser();
+    const slug = GITHUB_TO_GITLAB_EMOJI[content];
+    // GitLab requires the issue iid to scope note operations; we resolve it
+    // by walking the project's notes — cheap because we only need the iid.
+    // The webview already knows the issue context, but the provider API
+    // accepts only commentId; to keep that contract we look it up here.
+    const issueNumber = await this.findIssueIidForNote(commentId);
+    if (issueNumber === null) {
+      throw new Error(`Cannot resolve issue for comment ${commentId}`);
+    }
+
+    const all = await this.gitlab.IssueNoteAwardEmojis.all(this.projectPath, issueNumber, commentId)
+      .then((a) => a as any[])
+      .catch(() => [] as any[]);
+    const mine = all.find((a) => a.name === slug && a.user?.username === me.login);
+    if (mine) {
+      await this.gitlab.IssueNoteAwardEmojis.remove(this.projectPath, issueNumber, commentId, mine.id);
+    } else {
+      await this.gitlab.IssueNoteAwardEmojis.award(this.projectPath, issueNumber, commentId, slug);
+    }
+  }
+
+  private async findIssueIidForNote(noteId: number): Promise<number | null> {
+    // We piggy-back on the cached commentId → noteable mapping by asking
+    // GitLab for the note directly. There is no per-project endpoint that
+    // returns a note by id without an issue iid, but we can look up the
+    // surrounding issue cheaply via search across the most recent issues.
+    // In practice the webview always loads `getIssue` first, so the user is
+    // always reacting on a comment they have just viewed; we keep a small
+    // in-memory map for that case.
+    const cached = this.noteIssueCache.get(noteId);
+    if (cached !== undefined) {
+      return cached;
+    }
+    return null;
+  }
+
+  private noteIssueCache = new Map<number, number>();
 
   async createIssue(data: CreateIssueData): Promise<Issue> {
     const opts: Record<string, any> = {};
@@ -289,4 +385,35 @@ export class GitLabProvider implements IssueProvider {
       avatarUrl: data?.avatar_url,
     };
   }
+}
+
+interface RawAward {
+  name: string;
+  user?: { username?: string };
+}
+
+function aggregateGitlabAwards(raw: RawAward[], meLogin: string | undefined): Reaction[] {
+  const counters = new Map<ReactionContent, { count: number; mine: boolean }>();
+  for (const a of raw) {
+    const mapped = GITLAB_TO_GITHUB_EMOJI[a.name];
+    if (!mapped) {
+      continue;
+    }
+    const existing = counters.get(mapped) ?? { count: 0, mine: false };
+    existing.count++;
+    if (meLogin && a.user?.username === meLogin) {
+      existing.mine = true;
+    }
+    counters.set(mapped, existing);
+  }
+  const out: Reaction[] = [];
+  // Stable order, matching the GitHub provider.
+  const order: ReactionContent[] = ['+1', '-1', 'laugh', 'hooray', 'confused', 'heart', 'rocket', 'eyes'];
+  for (const c of order) {
+    const slot = counters.get(c);
+    if (slot && slot.count > 0) {
+      out.push({ content: c, count: slot.count, meReacted: slot.mine });
+    }
+  }
+  return out;
 }

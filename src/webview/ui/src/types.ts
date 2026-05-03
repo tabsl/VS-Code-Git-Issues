@@ -16,6 +16,23 @@ export interface Comment {
   author: User;
   createdAt: string;
   updatedAt: string;
+  reactions?: Reaction[];
+}
+
+export type ReactionContent =
+  | '+1'
+  | '-1'
+  | 'laugh'
+  | 'hooray'
+  | 'confused'
+  | 'heart'
+  | 'rocket'
+  | 'eyes';
+
+export interface Reaction {
+  content: ReactionContent;
+  count: number;
+  meReacted: boolean;
 }
 
 export interface IssueDetail {
@@ -32,6 +49,7 @@ export interface IssueDetail {
   comments: Comment[];
   closedAt?: string;
   closedBy?: User;
+  reactions?: Reaction[];
 }
 
 export interface RepositoryInfo {
@@ -67,7 +85,9 @@ export type MessageToExtension =
   | { type: 'uploadFile'; fileName: string; fileContentBase64: string; uploadId: string }
   | { type: 'pickFile' }
   | { type: 'proxyImage'; requestId: string; imageUrl: string }
-  | { type: 'pickSlashCommand'; requestId: string };
+  | { type: 'pickSlashCommand'; requestId: string }
+  | { type: 'toggleIssueReaction'; content: ReactionContent }
+  | { type: 'toggleCommentReaction'; commentId: number; content: ReactionContent };
 
 export interface VsCodeApi {
   postMessage(message: MessageToExtension): void;

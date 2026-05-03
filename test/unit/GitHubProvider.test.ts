@@ -14,6 +14,15 @@ vi.mock('@octokit/rest', () => {
         createComment: vi.fn(),
         listLabelsForRepo: vi.fn(),
         listAssignees: vi.fn(),
+        listMilestones: vi.fn().mockResolvedValue({ data: [] }),
+      },
+      reactions: {
+        listForIssue: vi.fn().mockResolvedValue({ data: [] }),
+        listForIssueComment: vi.fn().mockResolvedValue({ data: [] }),
+        createForIssue: vi.fn(),
+        createForIssueComment: vi.fn(),
+        deleteForIssue: vi.fn(),
+        deleteForIssueComment: vi.fn(),
       },
       users: {
         getAuthenticated: vi.fn(),

@@ -1,8 +1,14 @@
 <script lang="ts">
-  import type { Comment, RepositoryInfo } from '../types';
+  import type { Comment, RepositoryInfo, ReactionContent } from '../types';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
+  import ReactionBar from './ReactionBar.svelte';
+  import { postMessage } from '../stores/vscodeApi';
 
   let { comments, repositoryInfo = null }: { comments: Comment[]; repositoryInfo?: RepositoryInfo | null } = $props();
+
+  function toggleCommentReaction(commentId: number, content: ReactionContent) {
+    postMessage({ type: 'toggleCommentReaction', commentId, content });
+  }
 
   function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString(undefined, {
@@ -29,7 +35,13 @@
         </div>
         <span class="date">{formatDate(comment.createdAt)}</span>
       </div>
-      <div class="comment-body"><MarkdownRenderer content={comment.body} {repositoryInfo} /></div>
+      <div class="comment-body">
+        <MarkdownRenderer content={comment.body} {repositoryInfo} />
+        <ReactionBar
+          reactions={comment.reactions ?? []}
+          onToggle={(c) => toggleCommentReaction(comment.id, c)}
+        />
+      </div>
     </div>
   {/each}
 

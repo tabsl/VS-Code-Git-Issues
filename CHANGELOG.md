@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add: interactive task-list checkboxes in the issue body. Clicking `- [ ]` flips the source marker and persists via `updateIssue`; checkboxes inside fenced code blocks stay read-only.
+- Add: emoji reactions on issues and comments (👍 👎 😄 🎉 😕 ❤️ 🚀 👀). Click an existing reaction chip to toggle yours, or use the "😊+" picker for new ones. Works for GitHub (native) and GitLab (with emoji-slug translation between `+1` ↔ `thumbsup` etc.).
+
 ## 1.4.0 — 2026-05-03
 
 - Add: full-text search in the sidebar — `Git Issues: Search Issues` (or the magnifier icon in the view title) filters loaded issues by title, `#number`, author login, label, or assignee. Active query is shown in the view description; clear via `Git Issues: Clear Search` or the title-bar icon.

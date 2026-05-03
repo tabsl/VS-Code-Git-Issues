@@ -1,10 +1,11 @@
 <script lang="ts">
-  import type { IssueDetail, RepositoryInfo } from '../types';
+  import type { IssueDetail, RepositoryInfo, ReactionContent } from '../types';
   import { postMessage } from '../stores/vscodeApi';
   import { toggleTaskInMarkdown } from '../lib/taskList';
   import CommentThread from './CommentThread.svelte';
   import CommentForm from './CommentForm.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
+  import ReactionBar from './ReactionBar.svelte';
 
   let { issue, repositoryInfo, onedit }: { issue: IssueDetail; repositoryInfo: RepositoryInfo | null; onedit: () => void } = $props();
 
@@ -41,6 +42,10 @@
       return;
     }
     postMessage({ type: 'updateIssue', data: { body: next } });
+  }
+
+  function toggleIssueReaction(content: ReactionContent) {
+    postMessage({ type: 'toggleIssueReaction', content });
   }
 </script>
 
@@ -109,6 +114,7 @@
     {:else}
       <p class="empty">No description provided.</p>
     {/if}
+    <ReactionBar reactions={issue.reactions ?? []} onToggle={toggleIssueReaction} />
   </section>
 
   <section class="comments-section">

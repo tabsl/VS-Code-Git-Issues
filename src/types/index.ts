@@ -24,6 +24,23 @@ export interface Comment {
   author: User;
   createdAt: Date;
   updatedAt: Date;
+  reactions?: Reaction[];
+}
+
+export type ReactionContent =
+  | '+1'
+  | '-1'
+  | 'laugh'
+  | 'hooray'
+  | 'confused'
+  | 'heart'
+  | 'rocket'
+  | 'eyes';
+
+export interface Reaction {
+  content: ReactionContent;
+  count: number;
+  meReacted: boolean;
 }
 
 export interface Issue {
@@ -43,6 +60,7 @@ export interface IssueDetail extends Issue {
   comments: Comment[];
   closedAt?: Date;
   closedBy?: User;
+  reactions?: Reaction[];
 }
 
 export interface CreateIssueData {
