@@ -69,11 +69,20 @@ describe('IssueStatusBarItem', () => {
     sb.dispose();
   });
 
-  it('hides the item when there are no issues at all', () => {
+  it('hides the item when there is no provider signal at all (no issues, no user)', () => {
     const tdp = makeTdp([]);
     const sb = new IssueStatusBarItem(tdp);
     const created = (vscode.window.createStatusBarItem as any).mock.results[0].value;
     expect(created.hide).toHaveBeenCalled();
+    sb.dispose();
+  });
+
+  it('keeps the item visible at "0 open" once the provider is authenticated', () => {
+    const tdp = makeTdp([], 'me');
+    const sb = new IssueStatusBarItem(tdp);
+    const created = (vscode.window.createStatusBarItem as any).mock.results[0].value;
+    expect(created.text).toBe('$(issues) 0');
+    expect(created.show).toHaveBeenCalled();
     sb.dispose();
   });
 

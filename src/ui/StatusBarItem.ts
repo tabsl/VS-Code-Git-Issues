@@ -65,9 +65,12 @@ export class IssueStatusBarItem implements vscode.Disposable {
     }
     const issues = this.treeDataProvider.getIssues();
     const me = this.treeDataProvider.getCurrentUserLogin();
-    if (issues.length === 0) {
-      // Hide entirely when there's no provider / nothing to show, instead of
-      // sitting in the status bar at "0".
+
+    // Hide only while we have no signal at all that a provider is wired up.
+    // Once we know the current user, keep the item visible — even at zero
+    // issues — so the user can always click through to the sidebar and see
+    // that the extension is alive.
+    if (issues.length === 0 && !me) {
       this.item.hide();
       return;
     }
@@ -85,7 +88,9 @@ export class IssueStatusBarItem implements vscode.Disposable {
       this.item.tooltip = `Git Issues: ${open} open, ${assigned} assigned to you. Click to open the sidebar.`;
     } else {
       this.item.text = `$(issues) ${open}`;
-      this.item.tooltip = `Git Issues: ${open} open. Click to open the sidebar.`;
+      this.item.tooltip = open === 0
+        ? 'Git Issues: no open issues. Click to open the sidebar.'
+        : `Git Issues: ${open} open. Click to open the sidebar.`;
     }
     this.item.show();
   }

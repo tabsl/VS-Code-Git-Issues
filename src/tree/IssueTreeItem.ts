@@ -3,14 +3,12 @@ import type { Issue } from '../types';
 
 export class IssueTreeItem extends vscode.TreeItem {
   constructor(public readonly issue: Issue, currentUserLogin?: string) {
-    super(issue.title, vscode.TreeItemCollapsibleState.None);
+    super(`#${issue.number} ${issue.title}`, vscode.TreeItemCollapsibleState.None);
 
     const isAssignedToMe = currentUserLogin
       ? issue.assignees.some((a) => a.login === currentUserLogin)
       : false;
-    this.description = isAssignedToMe
-      ? `#${issue.number}  $(person-filled)`
-      : `#${issue.number}`;
+    this.description = isAssignedToMe ? '$(person-filled)' : '';
     this.tooltip = this.buildTooltip(isAssignedToMe);
     this.iconPath = new vscode.ThemeIcon(
       issue.state === 'open' ? 'issue-opened' : 'issue-closed',
