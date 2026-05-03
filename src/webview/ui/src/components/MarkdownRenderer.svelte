@@ -96,20 +96,26 @@
       ],
       ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'type', 'checked', 'disabled', 'target', 'rel'],
     });
-    const linked = addLinkTargets(resolveLinkUrls(resolveImageUrls(sanitized)));
-    // marked emits task-list checkboxes with the `disabled` attribute. When
-    // the owner has plugged in an onTaskToggle handler, drop `disabled` so
-    // the click handler in handleContainerClick actually fires.
-    if (onTaskToggle) {
-      return linked.replace(
-        /<input\s+([^>]*?)class="task-list-item-checkbox"([^>]*?)>/g,
-        (_match, before, after) => {
-          const stripped = `${before}${after}`.replace(/\s*\bdisabled(?:="[^"]*")?/g, '');
-          return `<input ${stripped.trim()} class="task-list-item-checkbox interactive">`;
-        }
-      );
+    return addLinkTargets(resolveLinkUrls(resolveImageUrls(sanitized)));
+  }
+
+  // marked emits task-list checkboxes with `disabled`. When the owner has
+  // plugged in an onTaskToggle handler, drop `disabled` after the DOM has
+  // been built. Doing this on the live DOM (rather than via regex on the
+  // sanitised HTML string) keeps DOMPurify's output the single source of
+  // truth and avoids any risk of re-introducing markup.
+  function activateTaskCheckboxes(): void {
+    if (!container || !onTaskToggle) {
+      return;
     }
-    return linked;
+    const boxes = container.querySelectorAll<HTMLInputElement>(
+      'input.task-list-item-checkbox'
+    );
+    for (const cb of boxes) {
+      cb.removeAttribute('disabled');
+      cb.disabled = false;
+      cb.classList.add('interactive');
+    }
   }
 
   function needsProxy(src: string): boolean {
@@ -230,7 +236,9 @@
   $effect(() => {
     void content;
     void repositoryInfo;
+    void onTaskToggle;
     proxyImages();
+    activateTaskCheckboxes();
   });
 </script>
 

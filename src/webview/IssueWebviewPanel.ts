@@ -1,7 +1,40 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'crypto';
 import type { IssueProvider } from '../providers/IssueProvider';
+import type { ReactionContent, UpdateIssueData } from '../types';
 import { GitOperations } from '../git/GitOperations';
+
+const ALLOWED_REACTIONS: ReadonlyArray<ReactionContent> = [
+  '+1', '-1', 'laugh', 'hooray', 'confused', 'heart', 'rocket', 'eyes',
+];
+
+function isAllowedReaction(value: unknown): value is ReactionContent {
+  return typeof value === 'string' && (ALLOWED_REACTIONS as readonly string[]).includes(value);
+}
+
+function pickUpdateIssueData(raw: unknown): UpdateIssueData {
+  if (!raw || typeof raw !== 'object') {
+    return {};
+  }
+  const src = raw as Record<string, unknown>;
+  const out: UpdateIssueData = {};
+  if (typeof src.title === 'string') {
+    out.title = src.title;
+  }
+  if (typeof src.body === 'string') {
+    out.body = src.body;
+  }
+  if (src.state === 'open' || src.state === 'closed') {
+    out.state = src.state;
+  }
+  if (Array.isArray(src.labels) && src.labels.every((l) => typeof l === 'string')) {
+    out.labels = src.labels as string[];
+  }
+  if (Array.isArray(src.assignees) && src.assignees.every((a) => typeof a === 'string')) {
+    out.assignees = src.assignees as string[];
+  }
+  return out;
+}
 
 function getNonce(): string {
   // CSP nonces must be unpredictable to a third party. Math.random is not
@@ -189,8 +222,15 @@ export class IssueWebviewPanel {
     }
   }
 
-  private async handleUpdateIssue(data: any): Promise<void> {
-    console.log('[Git Issues] handleUpdateIssue called with data keys:', Object.keys(data));
+  private async handleUpdateIssue(rawData: unknown): Promise<void> {
+    const data = pickUpdateIssueData(rawData);
+    console.log('[Git Issues] handleUpdateIssue called with allowed keys:', Object.keys(data));
+    if (Object.keys(data).length === 0) {
+      // Nothing to do — and silently ignoring is the safer choice when an
+      // unexpected webview message reaches us.
+      this.panel.webview.postMessage({ type: 'editComplete' });
+      return;
+    }
     try {
       const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Request timed out after 30s')), 30_000)
@@ -225,18 +265,33 @@ export class IssueWebviewPanel {
   }
 
   private handleOpenExternal(url: string): void {
-    // Validate URL before delegating to the OS — only http/https. Anything
-    // else (file://, javascript:, custom schemes) is rejected.
-    let parsed: vscode.Uri;
+    // Two-layer validation before delegating to the OS:
+    //   1. Scheme must be http(s) — rejects file://, javascript:, …
+    //   2. Host must match the configured provider base URL (github.com /
+    //      gitlab.com / self-hosted GitLab). Prevents an issue body or
+    //      linked-PR payload from steering the user toward an unrelated host.
+    let parsed: URL;
     try {
-      parsed = vscode.Uri.parse(url, true);
+      parsed = new URL(url);
     } catch {
       return;
     }
-    if (parsed.scheme !== 'https' && parsed.scheme !== 'http') {
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
       return;
     }
-    vscode.env.openExternal(parsed);
+
+    const baseUrl = this.provider.getRepositoryInfo().baseUrl;
+    let expectedHost: string;
+    try {
+      expectedHost = new URL(baseUrl).host;
+    } catch {
+      return;
+    }
+    if (parsed.host !== expectedHost) {
+      return;
+    }
+
+    vscode.env.openExternal(vscode.Uri.parse(parsed.toString()));
   }
 
   private async handleCreateBranch(): Promise<void> {
@@ -456,9 +511,12 @@ export class IssueWebviewPanel {
     }
   }
 
-  private async handleToggleIssueReaction(content: string): Promise<void> {
+  private async handleToggleIssueReaction(content: unknown): Promise<void> {
+    if (!isAllowedReaction(content)) {
+      return;
+    }
     try {
-      await this.provider.toggleIssueReaction(this.issueNumber, content as never);
+      await this.provider.toggleIssueReaction(this.issueNumber, content);
       await this.loadIssue();
     } catch (err) {
       vscode.window.showErrorMessage(
@@ -467,9 +525,12 @@ export class IssueWebviewPanel {
     }
   }
 
-  private async handleToggleCommentReaction(commentId: number, content: string): Promise<void> {
+  private async handleToggleCommentReaction(commentId: number, content: unknown): Promise<void> {
+    if (!isAllowedReaction(content) || typeof commentId !== 'number') {
+      return;
+    }
     try {
-      await this.provider.toggleCommentReaction(commentId, content as never);
+      await this.provider.toggleCommentReaction(commentId, content);
       await this.loadIssue();
     } catch (err) {
       vscode.window.showErrorMessage(

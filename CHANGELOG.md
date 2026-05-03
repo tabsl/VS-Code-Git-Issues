@@ -4,6 +4,10 @@
 
 Major release: deeper issue interactions (task lists, reactions, comment editing, linked PR/MR panel) and a split-view layout. No breaking config changes; existing 1.4.x settings keep working.
 
+- Security (defense-in-depth): allowlist `content` in `toggleIssueReaction` / `toggleCommentReaction` handlers and the fields accepted by `handleUpdateIssue` so a compromised webview can never widen the surface beyond what the UI legitimately sends. GitHub/GitLab APIs already enforced this server-side; this adds a second client-side gate.
+- Security (defense-in-depth): `openExternal` now requires the URL host to match the configured provider base URL (github.com / gitlab.* / self-hosted GitLab) on top of the existing `http(s)` scheme check.
+- Internal: replace post-sanitize regex on rendered markdown with a DOM-based `disabled`-strip for interactive task-list checkboxes — keeps DOMPurify the single source of truth for rendered HTML.
+
 - Add: interactive task-list checkboxes in the issue body. Clicking `- [ ]` flips the source marker and persists via `updateIssue`; checkboxes inside fenced code blocks stay read-only.
 - Add: emoji reactions on issues and comments (👍 👎 😄 🎉 😕 ❤️ 🚀 👀). Click an existing reaction chip to toggle yours, or use the "😊+" picker for new ones. Works for GitHub (native) and GitLab (with emoji-slug translation between `+1` ↔ `thumbsup` etc.).
 - Add: edit and delete your own comments. Each comment authored by the current user gets `Edit` / `Delete` actions in the header. Edit reuses the same Markdown editor (with attach / slash-command / preview tabs); delete asks for confirmation. Task-list checkboxes inside comments you own are now also clickable.
