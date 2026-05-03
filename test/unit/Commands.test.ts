@@ -81,8 +81,9 @@ describe('registerCommands', () => {
     registerCommands(ctx, config, tdp as any, () => provider, () => null, reinitializeProvider);
   });
 
-  it('registers all 16 commands', () => {
-    expect(registeredCommands.size).toBe(16);
+  it('registers all 17 commands', () => {
+    expect(registeredCommands.size).toBe(17);
+    expect(registeredCommands.has('gitIssues.referenceInCommit')).toBe(true);
     expect(registeredCommands.has('gitIssues.refresh')).toBe(true);
     expect(registeredCommands.has('gitIssues.search')).toBe(true);
     expect(registeredCommands.has('gitIssues.clearSearch')).toBe(true);

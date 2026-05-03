@@ -8,6 +8,7 @@ import { RepositoryResolver } from '../git/RepositoryResolver';
 import { GitOperations } from '../git/GitOperations';
 import { setSearchDescription } from '../extension';
 import { loadIssueTemplates, type IssueTemplate } from '../templates/IssueTemplates';
+import { extractIssueNumberFromBranch } from '../git/BranchIssueLinker';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -347,6 +348,115 @@ export function registerCommands(
           `Failed to create branch: ${err instanceof Error ? err.message : err}`
         );
       }
+    })
+  );
+
+  // Reference Issue in Commit — inserts a reference token
+  // (#42 / Closes #42 / Refs #42) into the SCM input box of the active repo.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitIssues.referenceInCommit', async () => {
+      const provider = getProvider();
+      if (!provider) {
+        vscode.window.showErrorMessage('Git Issues: No provider available');
+        return;
+      }
+      const repo = getActiveRepository();
+      if (!repo) {
+        vscode.window.showErrorMessage('Git Issues: No active repository');
+        return;
+      }
+
+      const gitApi = await RepositoryResolver.getGitApi();
+      const gitRepo = gitApi?.repositories.find(
+        (r) => r.rootUri.fsPath === repo.rootPath
+      );
+      if (!gitRepo) {
+        vscode.window.showErrorMessage(
+          'Git Issues: Cannot access SCM input — VS Code Git extension not available for this repo.'
+        );
+        return;
+      }
+
+      const branchHint = extractIssueNumberFromBranch(
+        gitRepo.state.HEAD?.name ?? ''
+      );
+
+      const issues = await provider.listIssues({ state: 'open', perPage: 100 })
+        .catch((err) => {
+          vscode.window.showErrorMessage(
+            `Failed to load issues: ${err instanceof Error ? err.message : err}`
+          );
+          return [] as Awaited<ReturnType<typeof provider.listIssues>>;
+        });
+
+      type IssueItem = vscode.QuickPickItem & { issueNumber: number };
+      const issueItems: IssueItem[] = issues.map((i) => ({
+        label: `#${i.number} ${i.title}`,
+        description: i.assignees.map((a) => `@${a.login}`).join(' '),
+        issueNumber: i.number,
+      }));
+      if (branchHint && !issueItems.some((it) => it.issueNumber === branchHint)) {
+        // Branch suggests an issue we don't have in the loaded set (e.g.
+        // closed). Surface it explicitly so the user can still reference it.
+        issueItems.unshift({
+          label: `#${branchHint} (from current branch)`,
+          description: 'Not in the open list — reference anyway',
+          issueNumber: branchHint,
+        });
+      }
+      issueItems.unshift({
+        label: '$(edit) Enter issue number…',
+        description: 'Type a number manually',
+        issueNumber: -1,
+      });
+
+      const picked = await vscode.window.showQuickPick(issueItems, {
+        placeHolder: branchHint
+          ? `Pick an issue (current branch suggests #${branchHint})`
+          : 'Pick an issue to reference',
+        matchOnDescription: true,
+      });
+      if (!picked) { return; }
+
+      let issueNumber = picked.issueNumber;
+      if (issueNumber === -1) {
+        const manual = await vscode.window.showInputBox({
+          prompt: 'Issue number',
+          validateInput: (v) => /^\d+$/.test(v.trim()) ? undefined : 'Enter a positive integer',
+        });
+        if (!manual) { return; }
+        issueNumber = Number(manual.trim());
+      }
+
+      const verbItems: Array<vscode.QuickPickItem & { snippet: string }> = [
+        { label: `#${issueNumber}`, description: 'Plain reference', snippet: `#${issueNumber}` },
+        { label: `Closes #${issueNumber}`, description: 'Auto-close on merge to default branch', snippet: `Closes #${issueNumber}` },
+        { label: `Fixes #${issueNumber}`, description: 'Synonym of Closes', snippet: `Fixes #${issueNumber}` },
+        { label: `Resolves #${issueNumber}`, description: 'Synonym of Closes', snippet: `Resolves #${issueNumber}` },
+        { label: `Refs #${issueNumber}`, description: 'Reference without closing', snippet: `Refs #${issueNumber}` },
+      ];
+      if (provider.platform === 'gitlab') {
+        verbItems.push(
+          { label: `!${issueNumber}`, description: 'Reference a merge request (GitLab)', snippet: `!${issueNumber}` },
+          { label: `Closes !${issueNumber}`, description: 'Close a merge request (GitLab)', snippet: `Closes !${issueNumber}` }
+        );
+      }
+      const verb = await vscode.window.showQuickPick(verbItems, {
+        placeHolder: 'Pick reference style',
+      });
+      if (!verb) { return; }
+
+      const current = gitRepo.inputBox.value;
+      const separator = !current
+        ? ''
+        : current.endsWith('\n\n')
+          ? ''
+          : current.endsWith('\n')
+            ? '\n'
+            : '\n\n';
+      gitRepo.inputBox.value = `${current}${separator}${verb.snippet}`;
+
+      await vscode.commands.executeCommand('workbench.view.scm');
     })
   );
 

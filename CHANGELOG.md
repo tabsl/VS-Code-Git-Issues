@@ -9,6 +9,7 @@
 - Add: slash-command insert helper in the comment editor and issue edit form. A "/ Slash command" toolbar button opens a Quick Pick of common GitLab quick actions (`/close`, `/assign`, `/label`, `/milestone`, `/due`, `/spend`, …). Selected snippet is inserted at the cursor. GitLab parses these on submit; for GitHub the picker shows a heads-up that the actions are not parsed natively.
 - Add: Write / Preview tab in the comment editor and issue edit form. Switch to "Preview" to see the rendered Markdown (with the same image proxy and relative-URL resolution the issue body uses). Disabled when the editor is empty.
 - Add: branch ↔ issue auto-link. Switching to a branch whose name encodes an issue number (`123-fix-login`, `feature/issue-123-…`, `gh-1234-…`, `fix-#42`, …) shows a notification with an "Open Issue" action. Toggle via the new `gitIssues.autoLinkBranchToIssue` setting (default on); the prompt also offers a one-click "Don't ask again".
+- Add: `Git Issues: Reference in Commit` command. Picks an open issue (or accepts a manual number, with the current branch's issue pre-suggested), then a reference style (`#42`, `Closes #42`, `Fixes #42`, `Refs #42`, plus `!42` / `Closes !42` for GitLab merge requests) and inserts it into the active repo's SCM input box.
 
 ## 1.3.3 — 2026-05-02
 

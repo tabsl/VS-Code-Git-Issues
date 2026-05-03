@@ -124,6 +124,12 @@
         "category": "Git Issues"
       },
       {
+        "command": "gitIssues.referenceInCommit",
+        "title": "Reference in Commit",
+        "icon": "$(git-commit)",
+        "category": "Git Issues"
+      },
+      {
         "command": "gitIssues.selectRepository",
         "title": "Select Repository",
         "icon": "$(repo)",
