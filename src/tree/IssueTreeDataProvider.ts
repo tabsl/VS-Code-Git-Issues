@@ -121,6 +121,15 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
     return this.currentUserLogin;
   }
 
+  getIssues(): readonly Issue[] {
+    return this.issues;
+  }
+
+  findTreeItemForIssue(issueNumber: number): IssueTreeItem | null {
+    const issue = this.issues.find((i) => i.number === issueNumber);
+    return issue ? new IssueTreeItem(issue, this.currentUserLogin) : null;
+  }
+
   private getVisibleIssues(): Issue[] {
     let result = this.issues;
 

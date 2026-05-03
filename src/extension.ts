@@ -6,6 +6,7 @@ import { RepositoryResolver, type DetectedRepository } from './git/RepositoryRes
 import { IssueTreeDataProvider } from './tree/IssueTreeDataProvider';
 import { registerCommands } from './commands';
 import type { IssueProvider } from './providers/IssueProvider';
+import { extractIssueNumberFromBranch } from './git/BranchIssueLinker';
 
 const ACTIVE_REPO_KEY = 'gitIssues.activeRepositoryPath';
 
@@ -99,8 +100,61 @@ export async function activate(context: vscode.ExtensionContext) {
         })
       );
     }
+
+    // Watch each repo's HEAD for branch switches and offer to open the
+    // matching issue (`123-…`, `feature/issue-123-…`, …).
+    const lastBranchByRepo = new Map<string, string>();
+    const wireBranchWatcher = (repo: typeof gitApi.repositories[number]) => {
+      const repoKey = repo.rootUri.fsPath;
+      lastBranchByRepo.set(repoKey, repo.state.HEAD?.name ?? '');
+      context.subscriptions.push(
+        repo.state.onDidChange(() => {
+          const newBranch = repo.state.HEAD?.name ?? '';
+          const previous = lastBranchByRepo.get(repoKey) ?? '';
+          if (newBranch === previous) {
+            return;
+          }
+          lastBranchByRepo.set(repoKey, newBranch);
+          handleBranchSwitch(newBranch, repoKey);
+        })
+      );
+    };
+    for (const repo of gitApi.repositories) {
+      wireBranchWatcher(repo);
+    }
+    context.subscriptions.push(
+      gitApi.onDidOpenRepository((repo) => wireBranchWatcher(repo))
+    );
   } else {
     log.appendLine('VSCode git extension not available — falling back to workspace-folder scan only');
+  }
+
+  function handleBranchSwitch(branchName: string, repoKey: string): void {
+    const cfg = vscode.workspace.getConfiguration('gitIssues');
+    if (!cfg.get<boolean>('autoLinkBranchToIssue', true)) {
+      return;
+    }
+    const issueNumber = extractIssueNumberFromBranch(branchName);
+    if (!issueNumber) {
+      return;
+    }
+    if (activeRepository && activeRepository.rootPath !== repoKey) {
+      return;
+    }
+    log.appendLine(`Branch "${branchName}" → issue #${issueNumber}`);
+    vscode.window
+      .showInformationMessage(
+        `Branch "${branchName}" looks linked to issue #${issueNumber}.`,
+        'Open Issue',
+        'Don’t ask again'
+      )
+      .then((choice) => {
+        if (choice === 'Open Issue') {
+          vscode.commands.executeCommand('gitIssues.openIssue', issueNumber);
+        } else if (choice === 'Don’t ask again') {
+          cfg.update('autoLinkBranchToIssue', false, vscode.ConfigurationTarget.Global);
+        }
+      });
   }
 
   let autoRefreshTimer: ReturnType<typeof setInterval> | undefined;

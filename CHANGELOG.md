@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 — 2026-05-03
 
 - Add: full-text search in the sidebar — `Git Issues: Search Issues` (or the magnifier icon in the view title) filters loaded issues by title, `#number`, author login, label, or assignee. Active query is shown in the view description; clear via `Git Issues: Clear Search` or the title-bar icon.
 - Add: "My Issues" quick filter — click the person icon in the view title to limit the list to issues assigned to you (icon switches to filled when active). The full filter dialog (`Git Issues: Filter Issues`) gains an "Everyone / Assigned to me / Created by me" step.
@@ -8,6 +8,7 @@
 - Add: issue templates — `Git Issues: Create Issue` reads `.github/ISSUE_TEMPLATE/*.md` (GitHub) or `.gitlab/issue_templates/*.md` (GitLab) from the active repo and lets you pick one. Frontmatter `title:`, `labels:` and `body` are pre-filled. Repos without templates keep the previous blank flow.
 - Add: slash-command insert helper in the comment editor and issue edit form. A "/ Slash command" toolbar button opens a Quick Pick of common GitLab quick actions (`/close`, `/assign`, `/label`, `/milestone`, `/due`, `/spend`, …). Selected snippet is inserted at the cursor. GitLab parses these on submit; for GitHub the picker shows a heads-up that the actions are not parsed natively.
 - Add: Write / Preview tab in the comment editor and issue edit form. Switch to "Preview" to see the rendered Markdown (with the same image proxy and relative-URL resolution the issue body uses). Disabled when the editor is empty.
+- Add: branch ↔ issue auto-link. Switching to a branch whose name encodes an issue number (`123-fix-login`, `feature/issue-123-…`, `gh-1234-…`, `fix-#42`, …) shows a notification with an "Open Issue" action. Toggle via the new `gitIssues.autoLinkBranchToIssue` setting (default on); the prompt also offers a one-click "Don't ask again".
 
 ## 1.3.3 — 2026-05-02
 

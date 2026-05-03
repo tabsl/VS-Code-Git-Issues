@@ -6,12 +6,14 @@ Manage GitHub and GitLab issues directly from VS Code. Browse, create, edit, and
 
 - **Sidebar Issue List** — View all issues in a dedicated sidebar with open/closed state icons
 - **GitHub & GitLab Support** — Works with GitHub.com, GitLab.com, and self-hosted GitLab instances
-- **Create Issues** — Create new issues directly from VS Code (auto-assigned to you)
+- **Create Issues** — Create new issues directly from VS Code (auto-assigned to you), with optional template picker for repos that ship `.github/ISSUE_TEMPLATE/*.md` or `.gitlab/issue_templates/*.md`
 - **Edit Issues** — Update title, description, labels, and assignees via dropdown selectors
 - **Comment** — Add comments to issues without switching to the browser
-- **Filter & Sort** — Filter by state (open/closed/all) and sort by created, updated, or comments
+- **Write / Preview** — Toggle between Markdown source and rendered preview in the comment editor and issue edit form
+- **Slash-Command Helper** — Insert common GitLab quick actions (`/close`, `/assign`, `/label`, `/milestone`, …) from a Quick Pick. GitLab parses them on submit; for GitHub the picker shows that the snippets are inserted as plain text
+- **Search & Filter** — Full-text search across loaded issues, plus filters for state (open/closed/all), sort (created/updated/comments), user scope (assigned to me / created by me / everyone), labels (multi-select) and milestone
 - **Open in Browser** — Quickly jump to the issue in your browser
-- **Assignment Indicator** — Issues assigned to you are marked with a person icon in the sidebar
+- **Assignment Indicator** — Issues assigned to you are marked with a person icon in the sidebar; a one-click toggle in the title bar limits the list to your issues
 - **File Upload (GitLab)** — Drag-and-drop, paste images from the clipboard, or pick a file when commenting on or editing GitLab issues
 - **Multi-Repo Workspaces** — Detects all git repos in your workspace, including nested ones (monorepos with sibling repos like `app/`, `api/`, `site/`). The active repo follows your editor; pin a specific one via `Git Issues: Select Repository`.
 - **Multiple GitLab Instances** — Configure separate Personal Access Tokens per host (e.g. `gitlab.com` and your self-hosted `gitlab.example.com`). The right token is picked automatically based on each repo's git remote.
@@ -53,8 +55,13 @@ Tokens configured via commands are stored securely in VS Code Secret Storage. Gi
 All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 
 - **Git Issues: Refresh Issues** — Reload the issue list
-- **Git Issues: Create Issue** — Create a new issue
-- **Git Issues: Filter Issues** — Change the state filter
+- **Git Issues: Search Issues** — Filter the loaded issue list by title, `#number`, author login, label or assignee (also available as a 🔍 icon in the view title bar)
+- **Git Issues: Clear Search** — Remove the active search filter (replaces the search icon while a query is active)
+- **Git Issues: Create Issue** — Create a new issue. If `.github/ISSUE_TEMPLATE/*.md` (GitHub) or `.gitlab/issue_templates/*.md` (GitLab) are present in the active repo, you can pick a template (or "Blank issue") that pre-fills title, body and labels.
+- **Git Issues: Filter Issues** — Change state, sort and user-scope (Everyone / Assigned to me / Created by me) in one dialog
+- **Git Issues: Toggle My Issues** — One-click toggle in the title bar that limits the list to issues assigned to you (icon switches to filled when active)
+- **Git Issues: Filter by Labels** — Multi-select Quick Pick over all repository labels (server-side filter)
+- **Git Issues: Filter by Milestone** — Pick a single milestone (with a "Clear" entry) to scope the list (server-side filter)
 - **Git Issues: Select Repository** — In multi-repo workspaces, pick which repo's issues to show (also available as a 📁 icon in the view title bar when more than one repo is detected). Once picked, the choice is persisted per workspace and disables auto-follow.
 - **Git Issues: Create Branch from Issue** — Create and switch to a new branch named after an issue (right-click an issue in the sidebar)
 - **Git Issues: Open in Browser** — Open the selected issue in your default browser (also available as a 🌐 icon next to issues in the sidebar)

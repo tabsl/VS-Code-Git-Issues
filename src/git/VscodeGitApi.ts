@@ -17,11 +17,23 @@ export interface GitApi {
 export interface GitRepository {
   readonly rootUri: vscode.Uri;
   readonly state: GitRepositoryState;
+  readonly inputBox: GitInputBox;
 }
 
 export interface GitRepositoryState {
   readonly remotes: GitRemote[];
+  readonly HEAD?: GitBranch;
   readonly onDidChange: vscode.Event<void>;
+}
+
+export interface GitBranch {
+  readonly name?: string;
+  readonly commit?: string;
+  readonly type?: number;
+}
+
+export interface GitInputBox {
+  value: string;
 }
 
 export interface GitRemote {
