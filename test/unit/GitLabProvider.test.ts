@@ -12,6 +12,8 @@ const mockGitlab = {
   IssueNotes: {
     all: vi.fn(),
     create: vi.fn(),
+    edit: vi.fn(),
+    remove: vi.fn(),
   },
   ProjectLabels: {
     all: vi.fn(),

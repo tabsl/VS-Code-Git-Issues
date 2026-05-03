@@ -8,6 +8,7 @@
   let allAssignees: User[] = $state([]);
   let repoInfo: RepositoryInfo | null = $state(null);
   let editing = $state(false);
+  let currentUserLogin: string | undefined = $state(undefined);
 
   window.addEventListener('message', (event: MessageEvent<MessageToWebview>) => {
     const msg = event.data;
@@ -17,6 +18,7 @@
         allLabels = msg.labels;
         allAssignees = msg.assignees;
         repoInfo = msg.repositoryInfo;
+        currentUserLogin = msg.currentUserLogin;
         editing = false;
         break;
       case 'commentAdded':
@@ -52,7 +54,7 @@
     {#if editing}
       <IssueForm {issue} labels={allLabels} assignees={allAssignees} repositoryInfo={repoInfo} oncancel={handleCancel} />
     {:else}
-      <IssueView {issue} repositoryInfo={repoInfo} onedit={handleEdit} />
+      <IssueView {issue} repositoryInfo={repoInfo} {currentUserLogin} onedit={handleEdit} />
     {/if}
   {:else}
     <div class="loading">Loading issue...</div>

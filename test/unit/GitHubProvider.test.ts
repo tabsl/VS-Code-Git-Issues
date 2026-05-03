@@ -12,6 +12,8 @@ vi.mock('@octokit/rest', () => {
         update: vi.fn(),
         listComments: vi.fn(),
         createComment: vi.fn(),
+        updateComment: vi.fn(),
+        deleteComment: vi.fn(),
         listLabelsForRepo: vi.fn(),
         listAssignees: vi.fn(),
         listMilestones: vi.fn().mockResolvedValue({ data: [] }),

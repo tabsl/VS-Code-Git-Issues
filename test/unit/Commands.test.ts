@@ -44,6 +44,8 @@ function createMockProvider(): IssueProvider {
     updateIssue: vi.fn(),
     listComments: vi.fn(),
     addComment: vi.fn(),
+    updateComment: vi.fn(),
+    deleteComment: vi.fn(),
     listLabels: vi.fn(),
     listMilestones: vi.fn(),
     listAssignees: vi.fn(),

@@ -77,6 +77,7 @@ export class IssueWebviewPanel {
         console.warn('Failed to load assignees:', err);
         return [];
       });
+      const me = await this.provider.getCurrentUser().catch(() => null);
       this.panel.title = `Issue #${issue.number}: ${issue.title}`;
       this.panel.webview.postMessage({
         type: 'issueLoaded',
@@ -84,6 +85,7 @@ export class IssueWebviewPanel {
         labels,
         assignees,
         repositoryInfo: this.provider.getRepositoryInfo(),
+        currentUserLogin: me?.login,
       });
       return true;
     } catch (err) {
@@ -130,6 +132,12 @@ export class IssueWebviewPanel {
             break;
           case 'toggleCommentReaction':
             await this.handleToggleCommentReaction(msg.commentId, msg.content);
+            break;
+          case 'updateComment':
+            await this.handleUpdateComment(msg.commentId, msg.body);
+            break;
+          case 'deleteComment':
+            await this.handleDeleteComment(msg.commentId);
             break;
         }
       },
@@ -366,6 +374,46 @@ export class IssueWebviewPanel {
       requestId,
       snippet: picked.snippet,
     });
+  }
+
+  private async handleUpdateComment(commentId: number, body: string): Promise<void> {
+    try {
+      await this.provider.updateComment(commentId, body);
+      await this.loadIssue();
+      vscode.window.showInformationMessage('Comment updated');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.panel.webview.postMessage({
+        type: 'operationFailed',
+        operation: 'updateComment',
+        message,
+      });
+      vscode.window.showErrorMessage(`Failed to update comment: ${message}`);
+    }
+  }
+
+  private async handleDeleteComment(commentId: number): Promise<void> {
+    const confirm = await vscode.window.showWarningMessage(
+      'Delete this comment? This cannot be undone.',
+      { modal: true },
+      'Delete'
+    );
+    if (confirm !== 'Delete') {
+      return;
+    }
+    try {
+      await this.provider.deleteComment(commentId);
+      await this.loadIssue();
+      vscode.window.showInformationMessage('Comment deleted');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.panel.webview.postMessage({
+        type: 'operationFailed',
+        operation: 'deleteComment',
+        message,
+      });
+      vscode.window.showErrorMessage(`Failed to delete comment: ${message}`);
+    }
   }
 
   private async handleToggleIssueReaction(content: string): Promise<void> {

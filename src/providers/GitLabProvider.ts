@@ -237,7 +237,32 @@ export class GitLabProvider implements IssueProvider {
       issueNumber,
       body
     );
+    // Cache the issue iid against the note id so subsequent edit/delete/
+    // reaction calls don't have to look it up again.
+    this.noteIssueCache.set((note as any).id, issueNumber);
     return this.mapComment(note as any);
+  }
+
+  async updateComment(commentId: number, body: string): Promise<Comment> {
+    const issueNumber = this.noteIssueCache.get(commentId);
+    if (issueNumber === undefined) {
+      throw new Error(`Cannot resolve issue for comment ${commentId} — open the issue first`);
+    }
+    const note = await this.gitlab.IssueNotes.edit(
+      this.projectPath,
+      issueNumber,
+      commentId,
+      { body }
+    );
+    return this.mapComment(note as any);
+  }
+
+  async deleteComment(commentId: number): Promise<void> {
+    const issueNumber = this.noteIssueCache.get(commentId);
+    if (issueNumber === undefined) {
+      throw new Error(`Cannot resolve issue for comment ${commentId} — open the issue first`);
+    }
+    await this.gitlab.IssueNotes.remove(this.projectPath, issueNumber, commentId);
   }
 
   async listLabels(): Promise<Label[]> {

@@ -214,6 +214,24 @@ export class GitHubProvider implements IssueProvider {
     return this.mapComment(response.data);
   }
 
+  async updateComment(commentId: number, body: string): Promise<Comment> {
+    const response = await this.octokit.rest.issues.updateComment({
+      owner: this.owner,
+      repo: this.repo,
+      comment_id: commentId,
+      body,
+    });
+    return this.mapComment(response.data);
+  }
+
+  async deleteComment(commentId: number): Promise<void> {
+    await this.octokit.rest.issues.deleteComment({
+      owner: this.owner,
+      repo: this.repo,
+      comment_id: commentId,
+    });
+  }
+
   async listLabels(): Promise<Label[]> {
     const response = await this.octokit.rest.issues.listLabelsForRepo({
       owner: this.owner,

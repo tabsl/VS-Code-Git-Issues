@@ -60,13 +60,13 @@ export interface RepositoryInfo {
 }
 
 export type MessageToWebview =
-  | { type: 'issueLoaded'; issue: IssueDetail; labels: Label[]; assignees: User[]; repositoryInfo: RepositoryInfo }
+  | { type: 'issueLoaded'; issue: IssueDetail; labels: Label[]; assignees: User[]; repositoryInfo: RepositoryInfo; currentUserLogin?: string }
   | { type: 'commentAdded'; comment: Comment }
   | { type: 'issueUpdated'; issue: IssueDetail }
   | { type: 'editComplete' }
   | {
     type: 'operationFailed';
-    operation: 'addComment' | 'updateIssue' | 'createBranch' | 'uploadFile';
+    operation: 'addComment' | 'updateIssue' | 'createBranch' | 'uploadFile' | 'updateComment' | 'deleteComment';
     message: string;
   }
   | { type: 'uploadProgress'; uploadId: string; status: 'uploading' | 'completed' | 'failed'; markdown?: string; message?: string }
@@ -87,7 +87,9 @@ export type MessageToExtension =
   | { type: 'proxyImage'; requestId: string; imageUrl: string }
   | { type: 'pickSlashCommand'; requestId: string }
   | { type: 'toggleIssueReaction'; content: ReactionContent }
-  | { type: 'toggleCommentReaction'; commentId: number; content: ReactionContent };
+  | { type: 'toggleCommentReaction'; commentId: number; content: ReactionContent }
+  | { type: 'updateComment'; commentId: number; body: string }
+  | { type: 'deleteComment'; commentId: number };
 
 export interface VsCodeApi {
   postMessage(message: MessageToExtension): void;

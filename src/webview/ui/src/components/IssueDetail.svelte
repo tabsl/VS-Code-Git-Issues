@@ -7,7 +7,17 @@
   import MarkdownRenderer from './MarkdownRenderer.svelte';
   import ReactionBar from './ReactionBar.svelte';
 
-  let { issue, repositoryInfo, onedit }: { issue: IssueDetail; repositoryInfo: RepositoryInfo | null; onedit: () => void } = $props();
+  let {
+    issue,
+    repositoryInfo,
+    currentUserLogin,
+    onedit,
+  }: {
+    issue: IssueDetail;
+    repositoryInfo: RepositoryInfo | null;
+    currentUserLogin?: string;
+    onedit: () => void;
+  } = $props();
 
   function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString(undefined, {
@@ -119,7 +129,7 @@
 
   <section class="comments-section">
     <h2>Comments ({issue.commentCount})</h2>
-    <CommentThread comments={issue.comments} {repositoryInfo} />
+    <CommentThread comments={issue.comments} {repositoryInfo} {currentUserLogin} />
     <CommentForm platform={repositoryInfo?.platform || 'github'} {repositoryInfo} />
   </section>
 </article>

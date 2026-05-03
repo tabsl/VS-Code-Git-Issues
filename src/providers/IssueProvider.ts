@@ -27,6 +27,8 @@ export interface IssueProvider {
   // Comments
   listComments(issueNumber: number): Promise<Comment[]>;
   addComment(issueNumber: number, body: string): Promise<Comment>;
+  updateComment(commentId: number, body: string): Promise<Comment>;
+  deleteComment(commentId: number): Promise<void>;
 
   // Labels
   listLabels(): Promise<Label[]>;
