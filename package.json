@@ -246,6 +246,11 @@
           "type": "boolean",
           "default": true,
           "description": "When you switch to a branch whose name contains an issue number (e.g. 123-fix-login or feature/issue-123-…), prompt to open that issue."
+        },
+        "gitIssues.statusBar.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the open-issue / assigned-to-me counter in the status bar. Click the item to focus the Git Issues sidebar."
         }
       }
     }

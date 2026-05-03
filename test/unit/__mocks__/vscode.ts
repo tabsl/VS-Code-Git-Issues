@@ -113,6 +113,8 @@ export const __resetConfigStores = () => {
   for (const k of Object.keys(workspaceFolderStore)) { delete workspaceFolderStore[k]; }
 };
 
+export const StatusBarAlignment = { Left: 1, Right: 2 };
+
 export const window = {
   createOutputChannel: vi.fn(() => ({
     appendLine: vi.fn(),
@@ -120,6 +122,14 @@ export const window = {
     dispose: vi.fn(),
   })),
   createTreeView: vi.fn(() => ({ dispose: vi.fn() })),
+  createStatusBarItem: vi.fn(() => ({
+    text: '',
+    tooltip: '',
+    command: undefined as unknown,
+    show: vi.fn(),
+    hide: vi.fn(),
+    dispose: vi.fn(),
+  })),
   showInformationMessage: vi.fn(),
   showErrorMessage: vi.fn(),
   showWarningMessage: vi.fn(),

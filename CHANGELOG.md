@@ -10,6 +10,7 @@
 - Add: Write / Preview tab in the comment editor and issue edit form. Switch to "Preview" to see the rendered Markdown (with the same image proxy and relative-URL resolution the issue body uses). Disabled when the editor is empty.
 - Add: branch ↔ issue auto-link. Switching to a branch whose name encodes an issue number (`123-fix-login`, `feature/issue-123-…`, `gh-1234-…`, `fix-#42`, …) shows a notification with an "Open Issue" action. Toggle via the new `gitIssues.autoLinkBranchToIssue` setting (default on); the prompt also offers a one-click "Don't ask again".
 - Add: `Git Issues: Reference in Commit` command. Picks an open issue (or accepts a manual number, with the current branch's issue pre-suggested), then a reference style (`#42`, `Closes #42`, `Fixes #42`, `Refs #42`, plus `!42` / `Closes !42` for GitLab merge requests) and inserts it into the active repo's SCM input box.
+- Add: status-bar counter showing `📋 N open` (and `· 👤 N` when issues are assigned to you in the active repo). Click the item to focus the Git Issues sidebar. Hidden when the provider has no issues to show or when `gitIssues.statusBar.enabled` is set to false.
 
 ## 1.3.3 — 2026-05-02
 

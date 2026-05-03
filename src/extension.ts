@@ -7,6 +7,7 @@ import { IssueTreeDataProvider } from './tree/IssueTreeDataProvider';
 import { registerCommands } from './commands';
 import type { IssueProvider } from './providers/IssueProvider';
 import { extractIssueNumberFromBranch } from './git/BranchIssueLinker';
+import { IssueStatusBarItem } from './ui/StatusBarItem';
 
 const ACTIVE_REPO_KEY = 'gitIssues.activeRepositoryPath';
 
@@ -30,6 +31,9 @@ export async function activate(context: vscode.ExtensionContext) {
     showCollapseAll: true,
   });
   context.subscriptions.push(treeView);
+
+  const statusBarItem = new IssueStatusBarItem(treeDataProvider);
+  context.subscriptions.push(statusBarItem);
 
   // Commands
   registerCommands(
