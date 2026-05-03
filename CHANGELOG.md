@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 2.0.0 — 2026-05-03
+
+Major release: deeper issue interactions (task lists, reactions, comment editing, linked PR/MR panel) and a split-view layout. No breaking config changes; existing 1.4.x settings keep working.
 
 - Add: interactive task-list checkboxes in the issue body. Clicking `- [ ]` flips the source marker and persists via `updateIssue`; checkboxes inside fenced code blocks stay read-only.
 - Add: emoji reactions on issues and comments (👍 👎 😄 🎉 😕 ❤️ 🚀 👀). Click an existing reaction chip to toggle yours, or use the "😊+" picker for new ones. Works for GitHub (native) and GitLab (with emoji-slug translation between `+1` ↔ `thumbsup` etc.).
