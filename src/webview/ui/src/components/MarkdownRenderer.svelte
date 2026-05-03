@@ -5,7 +5,15 @@
   import type { RepositoryInfo, MessageToWebview } from '../types';
   import { postMessage } from '../stores/vscodeApi';
 
-  let { content, repositoryInfo = null }: { content: string; repositoryInfo?: RepositoryInfo | null } = $props();
+  let {
+    content,
+    repositoryInfo = null,
+    onTaskToggle = null,
+  }: {
+    content: string;
+    repositoryInfo?: RepositoryInfo | null;
+    onTaskToggle?: ((index: number, checked: boolean) => void) | null;
+  } = $props();
 
   let container: HTMLDivElement;
   const pendingProxies = new Map<string, HTMLImageElement>();
@@ -88,7 +96,20 @@
       ],
       ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'type', 'checked', 'disabled', 'target', 'rel'],
     });
-    return addLinkTargets(resolveLinkUrls(resolveImageUrls(sanitized)));
+    const linked = addLinkTargets(resolveLinkUrls(resolveImageUrls(sanitized)));
+    // marked emits task-list checkboxes with the `disabled` attribute. When
+    // the owner has plugged in an onTaskToggle handler, drop `disabled` so
+    // the click handler in handleContainerClick actually fires.
+    if (onTaskToggle) {
+      return linked.replace(
+        /<input\s+([^>]*?)class="task-list-item-checkbox"([^>]*?)>/g,
+        (_match, before, after) => {
+          const stripped = `${before}${after}`.replace(/\s*\bdisabled(?:="[^"]*")?/g, '');
+          return `<input ${stripped.trim()} class="task-list-item-checkbox interactive">`;
+        }
+      );
+    }
+    return linked;
   }
 
   function needsProxy(src: string): boolean {
@@ -127,7 +148,34 @@
 
   function handleContainerClick(event: MouseEvent) {
     const target = event.target as HTMLElement | null;
-    if (!target || target.tagName !== 'IMG') return;
+    if (!target) return;
+
+    // Task-list checkbox click: bubble to the parent via onTaskToggle so the
+    // owner can edit the source markdown and persist the change. We map the
+    // clicked checkbox to its document-order index by counting all task-list
+    // checkboxes inside the container.
+    if (
+      target.tagName === 'INPUT' &&
+      (target as HTMLInputElement).type === 'checkbox' &&
+      target.classList.contains('task-list-item-checkbox')
+    ) {
+      if (!onTaskToggle) {
+        // Read-only mode — let the browser keep the box disabled.
+        event.preventDefault();
+        return;
+      }
+      const cb = target as HTMLInputElement;
+      const all = container.querySelectorAll<HTMLInputElement>('input.task-list-item-checkbox');
+      const index = Array.prototype.indexOf.call(all, cb);
+      if (index === -1) return;
+      // Optimistically reflect the new state in the DOM until the next render.
+      cb.checked = !cb.checked;
+      onTaskToggle(index, cb.checked);
+      event.preventDefault();
+      return;
+    }
+
+    if (target.tagName !== 'IMG') return;
     const img = target as HTMLImageElement;
     // Skip checkbox-style or other icon-only images without a real source
     const src = img.currentSrc || img.src;
@@ -225,6 +273,15 @@
 
   .markdown-body :global(p) {
     margin: 0.5em 0;
+  }
+
+  .markdown-body :global(input.task-list-item-checkbox.interactive) {
+    cursor: pointer;
+  }
+
+  .markdown-body :global(li:has(> input.task-list-item-checkbox)) {
+    list-style: none;
+    margin-left: -1.2em;
   }
 
   .markdown-body :global(a) {

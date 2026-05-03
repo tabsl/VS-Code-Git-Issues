@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { IssueDetail, RepositoryInfo } from '../types';
   import { postMessage } from '../stores/vscodeApi';
+  import { toggleTaskInMarkdown } from '../lib/taskList';
   import CommentThread from './CommentThread.svelte';
   import CommentForm from './CommentForm.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
@@ -32,6 +33,14 @@
 
   function createBranch() {
     postMessage({ type: 'createBranch' });
+  }
+
+  function handleBodyTaskToggle(index: number, checked: boolean) {
+    const next = toggleTaskInMarkdown(issue.body ?? '', index, checked);
+    if (next === issue.body) {
+      return;
+    }
+    postMessage({ type: 'updateIssue', data: { body: next } });
   }
 </script>
 
@@ -96,7 +105,7 @@
 
   <section class="body">
     {#if issue.body}
-      <MarkdownRenderer content={issue.body} {repositoryInfo} />
+      <MarkdownRenderer content={issue.body} {repositoryInfo} onTaskToggle={handleBodyTaskToggle} />
     {:else}
       <p class="empty">No description provided.</p>
     {/if}
