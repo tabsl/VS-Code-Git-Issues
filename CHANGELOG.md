@@ -6,6 +6,7 @@
 - Add: emoji reactions on issues and comments (👍 👎 😄 🎉 😕 ❤️ 🚀 👀). Click an existing reaction chip to toggle yours, or use the "😊+" picker for new ones. Works for GitHub (native) and GitLab (with emoji-slug translation between `+1` ↔ `thumbsup` etc.).
 - Add: edit and delete your own comments. Each comment authored by the current user gets `Edit` / `Delete` actions in the header. Edit reuses the same Markdown editor (with attach / slash-command / preview tabs); delete asks for confirmation. Task-list checkboxes inside comments you own are now also clickable.
 - Add: linked Pull Requests / Merge Requests panel between the issue body and the comment thread. GitHub uses `is:pr in:title,body #N` search; GitLab uses the dedicated `allRelatedMergeRequests` endpoint. Each entry shows status (Open / Draft / Merged / Closed), reference (`#N` / `!N`), title and author, and opens externally on click.
+- Add: split-view support — `Git Issues: Open Issue to the Side` (also as inline action in the sidebar) opens the issue panel in a new editor column next to your code. Set `gitIssues.issuePanel.location` to `beside` to make this the default for every open. Click-resize works as before via VS Code's native editor splits.
 
 ## 1.4.0 — 2026-05-03
 

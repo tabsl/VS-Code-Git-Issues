@@ -86,13 +86,14 @@ describe('registerCommands', () => {
     registerCommands(ctx, config, tdp as any, () => provider, () => null, reinitializeProvider);
   });
 
-  it('registers all 17 commands', () => {
-    expect(registeredCommands.size).toBe(17);
+  it('registers all 18 commands', () => {
+    expect(registeredCommands.size).toBe(18);
     expect(registeredCommands.has('gitIssues.referenceInCommit')).toBe(true);
     expect(registeredCommands.has('gitIssues.refresh')).toBe(true);
     expect(registeredCommands.has('gitIssues.search')).toBe(true);
     expect(registeredCommands.has('gitIssues.clearSearch')).toBe(true);
     expect(registeredCommands.has('gitIssues.openIssue')).toBe(true);
+    expect(registeredCommands.has('gitIssues.openIssueBeside')).toBe(true);
     expect(registeredCommands.has('gitIssues.createIssue')).toBe(true);
     expect(registeredCommands.has('gitIssues.filter')).toBe(true);
     expect(registeredCommands.has('gitIssues.filterByLabels')).toBe(true);

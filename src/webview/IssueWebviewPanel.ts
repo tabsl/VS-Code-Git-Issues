@@ -9,6 +9,20 @@ function getNonce(): string {
   return randomBytes(24).toString('base64');
 }
 
+function resolveTargetColumn(
+  override: 'active' | 'beside' | undefined
+): vscode.ViewColumn {
+  const setting =
+    override ??
+    (vscode.workspace
+      .getConfiguration('gitIssues')
+      .get<'active' | 'beside'>('issuePanel.location', 'active'));
+  if (setting === 'beside') {
+    return vscode.ViewColumn.Beside;
+  }
+  return vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
+}
+
 export class IssueWebviewPanel {
   private static currentPanel: IssueWebviewPanel | undefined;
 
@@ -31,14 +45,15 @@ export class IssueWebviewPanel {
   static show(
     extensionUri: vscode.Uri,
     provider: IssueProvider,
-    issueNumber: number
+    issueNumber: number,
+    options: { location?: 'active' | 'beside' } = {}
   ): void {
-    const column = vscode.window.activeTextEditor?.viewColumn;
+    const targetColumn = resolveTargetColumn(options.location);
 
     if (IssueWebviewPanel.currentPanel) {
       IssueWebviewPanel.currentPanel.provider = provider;
       IssueWebviewPanel.currentPanel.issueNumber = issueNumber;
-      IssueWebviewPanel.currentPanel.panel.reveal(column);
+      IssueWebviewPanel.currentPanel.panel.reveal(targetColumn);
       IssueWebviewPanel.currentPanel.panel.webview.html =
         IssueWebviewPanel.currentPanel.getHtml();
       IssueWebviewPanel.currentPanel.loadIssue();
@@ -48,7 +63,7 @@ export class IssueWebviewPanel {
     const panel = vscode.window.createWebviewPanel(
       'gitIssueDetail',
       `Issue #${issueNumber}`,
-      column || vscode.ViewColumn.One,
+      targetColumn,
       {
         enableScripts: true,
         localResourceRoots: [

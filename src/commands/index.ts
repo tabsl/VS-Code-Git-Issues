@@ -74,6 +74,32 @@ export function registerCommands(
     })
   );
 
+  // Open Issue beside the current editor (split view)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'gitIssues.openIssueBeside',
+      async (itemOrNumber: IssueTreeItem | number | undefined) => {
+        const provider = getProvider();
+        if (!provider) {
+          vscode.window.showErrorMessage('Git Issues: No provider available');
+          return;
+        }
+        const issueNumber = typeof itemOrNumber === 'number'
+          ? itemOrNumber
+          : itemOrNumber?.issue?.number;
+        if (!issueNumber) { return; }
+
+        const { IssueWebviewPanel } = await import('../webview/IssueWebviewPanel');
+        IssueWebviewPanel.show(
+          context.extensionUri,
+          provider,
+          issueNumber,
+          { location: 'beside' }
+        );
+      }
+    )
+  );
+
   // Create Issue
   context.subscriptions.push(
     vscode.commands.registerCommand('gitIssues.createIssue', async () => {
