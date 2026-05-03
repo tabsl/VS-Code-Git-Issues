@@ -121,7 +121,12 @@ export const window = {
     show: vi.fn(),
     dispose: vi.fn(),
   })),
-  createTreeView: vi.fn(() => ({ dispose: vi.fn() })),
+  createTreeView: vi.fn(() => ({
+    dispose: vi.fn(),
+    badge: undefined as unknown,
+    visible: false,
+    onDidChangeVisibility: vi.fn(() => ({ dispose: vi.fn() })),
+  })),
   createStatusBarItem: vi.fn(() => ({
     text: '',
     tooltip: '',

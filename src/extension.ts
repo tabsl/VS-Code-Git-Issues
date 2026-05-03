@@ -8,6 +8,7 @@ import { registerCommands } from './commands';
 import type { IssueProvider } from './providers/IssueProvider';
 import { extractIssueNumberFromBranch } from './git/BranchIssueLinker';
 import { IssueStatusBarItem } from './ui/StatusBarItem';
+import { NotificationTracker } from './ui/NotificationTracker';
 
 const ACTIVE_REPO_KEY = 'gitIssues.activeRepositoryPath';
 
@@ -15,6 +16,7 @@ let currentProvider: IssueProvider | null = null;
 let activeRepository: DetectedRepository | null = null;
 let detectedRepositories: DetectedRepository[] = [];
 let treeView: vscode.TreeView<unknown> | null = null;
+let notificationTrackerRef: NotificationTracker | null = null;
 const log = vscode.window.createOutputChannel('Git Issues');
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -34,6 +36,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const statusBarItem = new IssueStatusBarItem(treeDataProvider);
   context.subscriptions.push(statusBarItem);
+
+  const notificationTracker = new NotificationTracker(context, treeView, treeDataProvider);
+  notificationTrackerRef = notificationTracker;
+  context.subscriptions.push(notificationTracker);
 
   // Commands
   registerCommands(
@@ -235,6 +241,7 @@ async function initProvider(
     log.appendLine('No git remote "origin" found in any workspace folder');
     currentProvider = null;
     activeRepository = null;
+    notificationTrackerRef?.setActiveRepo(null);
     updateTreeViewDescription();
     treeDataProvider.setState('no-remote');
     return;
@@ -243,6 +250,7 @@ async function initProvider(
   const storedPath = context.workspaceState.get<string>(ACTIVE_REPO_KEY);
   const selected = pickInitialRepository(detectedRepositories, storedPath, activeRepository);
   activeRepository = selected;
+  notificationTrackerRef?.setActiveRepo(selected.rootPath);
 
   if (detectedRepositories.length > 1) {
     log.appendLine(

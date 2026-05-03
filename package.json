@@ -130,6 +130,12 @@
         "category": "Git Issues"
       },
       {
+        "command": "gitIssues.markIssuesRead",
+        "title": "Mark Issues as Read",
+        "icon": "$(check-all)",
+        "category": "Git Issues"
+      },
+      {
         "command": "gitIssues.selectRepository",
         "title": "Select Repository",
         "icon": "$(repo)",
@@ -251,6 +257,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show the open-issue / assigned-to-me counter in the status bar. Click the item to focus the Git Issues sidebar."
+        },
+        "gitIssues.notifications.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show an unread badge on the Git Issues view container when issues you authored or are assigned to have been updated since you last opened the sidebar."
         }
       }
     }
