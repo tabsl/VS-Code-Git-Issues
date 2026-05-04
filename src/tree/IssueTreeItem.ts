@@ -8,7 +8,7 @@ export class IssueTreeItem extends vscode.TreeItem {
     const isAssignedToMe = currentUserLogin
       ? issue.assignees.some((a) => a.login === currentUserLogin)
       : false;
-    this.description = isAssignedToMe ? '$(person)' : '';
+    this.description = isAssignedToMe ? '@you' : '';
     this.tooltip = this.buildTooltip(isAssignedToMe);
     this.iconPath = new vscode.ThemeIcon(
       issue.state === 'open' ? 'issue-opened' : 'issue-closed',

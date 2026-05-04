@@ -17,6 +17,7 @@ function createMockContext(): vscode.ExtensionContext {
 function createMockConfig(): Configuration {
   return {
     setGitHubToken: vi.fn(),
+    clearGitHubToken: vi.fn(),
     signInToGitHub: vi.fn().mockResolvedValue('gho_session'),
     setGitLabToken: vi.fn(),
     removeGitLabToken: vi.fn(),
@@ -171,6 +172,7 @@ describe('registerCommands', () => {
       await registeredCommands.get('gitIssues.configureGitHubToken')!();
 
       expect(config.signInToGitHub).toHaveBeenCalled();
+      expect(config.clearGitHubToken).toHaveBeenCalled();
       expect(reinitializeProvider).toHaveBeenCalled();
       expect(config.setGitHubToken).not.toHaveBeenCalled();
     });

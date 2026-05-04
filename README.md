@@ -2,6 +2,8 @@
 
 Manage GitHub and GitLab issues directly from VS Code. Browse, create, edit, and comment on issues without leaving your editor.
 
+![Git Issues for VS Code](vscode-git-issues.jpg)
+
 ## Features
 
 - **Sidebar Issue List** — View all issues in a dedicated sidebar with open/closed state icons

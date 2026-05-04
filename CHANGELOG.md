@@ -3,6 +3,9 @@
 ## 2.1.0 — 2026-05-04
 
 - Add: tokenless GitHub sign-in via VS Code's built-in GitHub account. `Git Issues: Sign in to GitHub / Configure Token` (formerly `Configure GitHub Token`) now opens a picker — choose **Sign in with GitHub** to authenticate via VS Code (requests `repo` and `read:org` scopes) or **Enter Personal Access Token** for GitHub Enterprise / custom scopes. Existing PATs keep working unchanged and take precedence. The view reacts to sign-in/out from the Accounts menu without a reload.
+- Fix: clear any previously stored GitHub PAT when switching to **Sign in with GitHub**, so the new VS Code session is actually used instead of falling back to the stale PAT (which surfaced as "Bad credentials").
+- UI: assignee marker in the sidebar now reads `@you` instead of a generic person icon — clearer at a glance and consistent across themes.
+- Docs: add product screenshot to the README.
 
 ## 2.0.0 — 2026-05-03
 

@@ -105,6 +105,10 @@ export class Configuration {
     await this.context.secrets.store(GITHUB_TOKEN_SECRET_KEY, token);
   }
 
+  async clearGitHubToken(): Promise<void> {
+    await this.context.secrets.delete(GITHUB_TOKEN_SECRET_KEY);
+  }
+
   async setGitLabToken(token: string, host?: string): Promise<void> {
     const targetHost = this.normalizeHost(host ?? this.getDefaultGitLabHost());
     await this.context.secrets.store(this.gitlabTokenKey(targetHost), token);

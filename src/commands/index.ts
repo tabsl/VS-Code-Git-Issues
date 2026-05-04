@@ -545,6 +545,10 @@ export function registerCommands(
       if (choice.label === SIGN_IN) {
         try {
           await config.signInToGitHub();
+          // Drop any previously stored PAT — otherwise getGitHubAuthToken()
+          // would keep returning the (likely stale) PAT and the new session
+          // would never be used, surfacing as "Bad credentials".
+          await config.clearGitHubToken();
           await reinitializeProvider();
           vscode.window.showInformationMessage('Signed in to GitHub');
         } catch (err) {
