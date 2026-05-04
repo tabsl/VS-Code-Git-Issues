@@ -516,9 +516,44 @@ export function registerCommands(
     })
   );
 
-  // Configure GitHub Token
+  // Configure GitHub Authentication — sign in via VSCode's built-in GitHub
+  // provider (no token needed) or fall back to a Personal Access Token (e.g.
+  // for GitHub Enterprise or fine-grained scopes).
   context.subscriptions.push(
     vscode.commands.registerCommand('gitIssues.configureGitHubToken', async () => {
+      const SIGN_IN = 'Sign in with GitHub';
+      const ENTER_TOKEN = 'Enter Personal Access Token';
+
+      const choice = await vscode.window.showQuickPick(
+        [
+          {
+            label: SIGN_IN,
+            description: 'Recommended — uses VSCode\'s built-in GitHub account',
+          },
+          {
+            label: ENTER_TOKEN,
+            description: 'Required for GitHub Enterprise or custom scopes',
+          },
+        ],
+        {
+          placeHolder: 'How would you like to authenticate with GitHub?',
+          ignoreFocusOut: true,
+        }
+      );
+      if (!choice) { return; }
+
+      if (choice.label === SIGN_IN) {
+        try {
+          await config.signInToGitHub();
+          await reinitializeProvider();
+          vscode.window.showInformationMessage('Signed in to GitHub');
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          vscode.window.showErrorMessage(`GitHub sign-in failed: ${msg}`);
+        }
+        return;
+      }
+
       const token = await vscode.window.showInputBox({
         prompt: 'Enter your GitHub Personal Access Token',
         password: true,

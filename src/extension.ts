@@ -189,6 +189,12 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   };
 
+  // React to GitHub sign-in/out via the VSCode account so we can switch between
+  // "no-token" and "ready" without requiring a manual reload.
+  context.subscriptions.push(
+    config.onDidChangeGitHubSession(() => reinit('github-session-changed'))
+  );
+
   // React to config changes
   context.subscriptions.push(
     config.onDidChange(() => {
@@ -267,7 +273,7 @@ async function initProvider(
 
   try {
     const result = await ProviderFactory.create(selected.rootPath, {
-      githubToken: await config.getGitHubToken(),
+      githubToken: await config.getGitHubAuthToken(),
       getGitLabToken: (host) => config.getGitLabToken(host),
       gitlabUrl: config.getGitLabUrl(),
     });

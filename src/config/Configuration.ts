@@ -7,6 +7,11 @@ const GITLAB_LEGACY_TOKEN_SECRET_KEY = 'gitIssues.gitlab.token';
 const GITLAB_HOSTS_STATE_KEY = 'gitIssues.gitlab.tokenHosts';
 const GITLAB_LEGACY_DISABLED_STATE_KEY = 'gitIssues.gitlab.legacyTokenDisabled';
 
+const GITHUB_AUTH_PROVIDER_ID = 'github';
+// `repo` covers private repos (issues, PRs); `read:org` lets us resolve org-only
+// teams referenced from issues. Matches the scopes typical PAT users grant.
+const GITHUB_AUTH_SCOPES = ['repo', 'read:org'];
+
 export class Configuration {
   constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -15,6 +20,49 @@ export class Configuration {
       GITHUB_TOKEN_SECRET_KEY,
       'github.token'
     );
+  }
+
+  /**
+   * Returns a usable GitHub access token: a stored PAT if present, otherwise an
+   * existing VSCode-managed GitHub session (silent — no sign-in prompt). Used
+   * during provider initialization so signed-in users don't have to enter a PAT.
+   */
+  async getGitHubAuthToken(): Promise<string> {
+    const pat = await this.getGitHubToken();
+    if (pat) {
+      return pat;
+    }
+    try {
+      const session = await vscode.authentication.getSession(
+        GITHUB_AUTH_PROVIDER_ID,
+        GITHUB_AUTH_SCOPES,
+        { createIfNone: false, silent: true }
+      );
+      return session?.accessToken ?? '';
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Triggers the VSCode GitHub sign-in flow (browser/device flow). Returns the
+   * access token on success. Throws if the user cancels.
+   */
+  async signInToGitHub(): Promise<string> {
+    const session = await vscode.authentication.getSession(
+      GITHUB_AUTH_PROVIDER_ID,
+      GITHUB_AUTH_SCOPES,
+      { createIfNone: true }
+    );
+    return session.accessToken;
+  }
+
+  onDidChangeGitHubSession(callback: () => void): vscode.Disposable {
+    return vscode.authentication.onDidChangeSessions((e) => {
+      if (e.provider.id === GITHUB_AUTH_PROVIDER_ID) {
+        callback();
+      }
+    });
   }
 
   async getGitLabToken(host?: string): Promise<string> {

@@ -22,12 +22,12 @@ Manage GitHub and GitLab issues directly from VS Code. Browse, create, edit, and
 
 1. Install the extension
 2. Open a project with a GitHub or GitLab remote
-3. Configure your token via the command palette:
-   - `Git Issues: Configure GitHub Token` — for GitHub repos
+3. Authenticate via the command palette:
+   - `Git Issues: Sign in to GitHub / Configure Token` — for GitHub repos. Pick **Sign in with GitHub** to authenticate via VS Code's built-in GitHub account (no token needed) or **Enter Personal Access Token** for GitHub Enterprise / fine-grained scopes.
    - `Git Issues: Configure GitLab Token` — for GitLab repos (you'll be asked which host the token belongs to; the active repo's host is pre-filled)
 4. Your issues appear in the **Git Issues** sidebar
 
-Tokens configured via commands are stored securely in VS Code Secret Storage. GitLab tokens are stored per host, so you can have separate tokens for `gitlab.com`, `gitlab.example.com` and any other instance.
+When you sign in via the VS Code GitHub account, the extension reuses your existing session — sign-in/sign-out from the **Accounts** menu in the activity bar takes effect immediately, no reload needed. Personal Access Tokens (GitHub PATs and all GitLab tokens) are stored securely in VS Code Secret Storage. GitLab tokens are stored per host, so you can have separate tokens for `gitlab.com`, `gitlab.example.com` and any other instance.
 
 ### Managing Multiple GitLab Tokens
 
@@ -36,10 +36,11 @@ Tokens configured via commands are stored securely in VS Code Secret Storage. Gi
 - Use `Git Issues: Manage GitLab Tokens` to list configured hosts and remove tokens you no longer need.
 - Existing single-token setups keep working as a read-only fallback until you save a host-specific token or remove the legacy entry from the manage dialog.
 
-### Token Permissions
+### Authentication & Token Permissions
 
-- **GitHub**: Create a [Personal Access Token](https://github.com/settings/tokens) with `repo` scope
-- **GitLab**: Create a [Personal Access Token](https://gitlab.com/-/user_settings/personal_access_tokens) with `api` scope
+- **GitHub (recommended)**: Use **Sign in with GitHub** — VS Code handles the OAuth flow and requests `repo` and `read:org` scopes automatically. No token to manage, copy, or rotate.
+- **GitHub (PAT alternative)**: Required for GitHub Enterprise or when you want narrower scopes. Create a [Personal Access Token](https://github.com/settings/tokens) with `repo` scope.
+- **GitLab**: Create a [Personal Access Token](https://gitlab.com/-/user_settings/personal_access_tokens) with `api` scope.
 
 ## Settings
 
@@ -65,7 +66,7 @@ All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+
 - **Git Issues: Select Repository** — In multi-repo workspaces, pick which repo's issues to show (also available as a 📁 icon in the view title bar when more than one repo is detected). Once picked, the choice is persisted per workspace and disables auto-follow.
 - **Git Issues: Create Branch from Issue** — Create and switch to a new branch named after an issue (right-click an issue in the sidebar)
 - **Git Issues: Open in Browser** — Open the selected issue in your default browser (also available as a 🌐 icon next to issues in the sidebar)
-- **Git Issues: Configure GitHub Token** — Set your GitHub PAT
+- **Git Issues: Sign in to GitHub / Configure Token** — Sign in via VS Code's GitHub account (recommended) or paste a Personal Access Token
 - **Git Issues: Configure GitLab Token** — Set a GitLab PAT for a specific host (supports multiple GitLab instances)
 - **Git Issues: Manage GitLab Tokens** — List and remove configured GitLab tokens per host
 

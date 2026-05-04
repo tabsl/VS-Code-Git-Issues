@@ -17,6 +17,7 @@ function createMockContext(): vscode.ExtensionContext {
 function createMockConfig(): Configuration {
   return {
     setGitHubToken: vi.fn(),
+    signInToGitHub: vi.fn().mockResolvedValue('gho_session'),
     setGitLabToken: vi.fn(),
     removeGitLabToken: vi.fn(),
     listGitLabTokenHosts: vi.fn().mockResolvedValue([]),
@@ -162,7 +163,22 @@ describe('registerCommands', () => {
   });
 
   describe('configureGitHubToken', () => {
-    it('saves token and reinitializes', async () => {
+    it('signs in via VSCode auth and reinitializes', async () => {
+      (vscode.window.showQuickPick as any).mockResolvedValue({
+        label: 'Sign in with GitHub',
+      });
+
+      await registeredCommands.get('gitIssues.configureGitHubToken')!();
+
+      expect(config.signInToGitHub).toHaveBeenCalled();
+      expect(reinitializeProvider).toHaveBeenCalled();
+      expect(config.setGitHubToken).not.toHaveBeenCalled();
+    });
+
+    it('saves PAT and reinitializes when user picks token entry', async () => {
+      (vscode.window.showQuickPick as any).mockResolvedValue({
+        label: 'Enter Personal Access Token',
+      });
       (vscode.window.showInputBox as any).mockResolvedValue('ghp_test');
 
       await registeredCommands.get('gitIssues.configureGitHubToken')!();
@@ -171,7 +187,18 @@ describe('registerCommands', () => {
       expect(reinitializeProvider).toHaveBeenCalled();
     });
 
-    it('does nothing when cancelled', async () => {
+    it('does nothing when picker is cancelled', async () => {
+      (vscode.window.showQuickPick as any).mockResolvedValue(undefined);
+
+      await registeredCommands.get('gitIssues.configureGitHubToken')!();
+      expect(config.signInToGitHub).not.toHaveBeenCalled();
+      expect(config.setGitHubToken).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when PAT entry is cancelled', async () => {
+      (vscode.window.showQuickPick as any).mockResolvedValue({
+        label: 'Enter Personal Access Token',
+      });
       (vscode.window.showInputBox as any).mockResolvedValue(undefined);
 
       await registeredCommands.get('gitIssues.configureGitHubToken')!();

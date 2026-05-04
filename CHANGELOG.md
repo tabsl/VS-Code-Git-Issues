@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.0 — 2026-05-04
+
+- Add: tokenless GitHub sign-in via VS Code's built-in GitHub account. `Git Issues: Sign in to GitHub / Configure Token` (formerly `Configure GitHub Token`) now opens a picker — choose **Sign in with GitHub** to authenticate via VS Code (requests `repo` and `read:org` scopes) or **Enter Personal Access Token** for GitHub Enterprise / custom scopes. Existing PATs keep working unchanged and take precedence. The view reacts to sign-in/out from the Accounts menu without a reload.
+
 ## 2.0.0 — 2026-05-03
 
 Major release: deeper issue interactions (task lists, reactions, comment editing, linked PR/MR panel) and a split-view layout. No breaking config changes; existing 1.4.x settings keep working.

@@ -231,12 +231,16 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
       case 'no-token':
         return [
           new MessageTreeItem(
-            `Click to configure ${this.viewState.platform === 'github' ? 'GitHub' : 'GitLab'} token`,
+            this.viewState.platform === 'github'
+              ? 'Click to sign in to GitHub'
+              : 'Click to configure GitLab token',
             {
               command: this.viewState.platform === 'github'
                 ? 'gitIssues.configureGitHubToken'
                 : 'gitIssues.configureGitLabToken',
-              title: 'Configure Token',
+              title: this.viewState.platform === 'github'
+                ? 'Sign in to GitHub'
+                : 'Configure Token',
             }
           ),
         ];

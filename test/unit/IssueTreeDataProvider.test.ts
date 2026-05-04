@@ -71,11 +71,11 @@ describe('IssueTreeDataProvider', () => {
       );
     });
 
-    it('shows configure token message for GitHub', () => {
+    it('shows sign-in message for GitHub', () => {
       tdp.setState('no-token', 'github');
       const children = tdp.getChildren();
       expect(children).toHaveLength(1);
-      expect((children[0] as MessageTreeItem).label).toBe('Click to configure GitHub token');
+      expect((children[0] as MessageTreeItem).label).toBe('Click to sign in to GitHub');
     });
 
     it('shows configure token message for GitLab', () => {
