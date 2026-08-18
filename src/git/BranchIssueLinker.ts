@@ -19,7 +19,7 @@
 
 const ISSUE_KEYWORD_PATTERN = /\b(?:issues?|gh|gl|ticket)[/\-_]?#?(\d+)/i;
 const HASH_PATTERN = /#(\d+)/;
-const SEGMENT_LEADING_PATTERN = /(?:^|[/\-_])(\d+)(?=[\-_/]|$)/;
+const SEGMENT_LEADING_PATTERN = /(?:^|[/\-_])(\d+)(?=[-_/]|$)/;
 const VERSION_PATTERN = /\b\d+\.\d+(?:\.\d+)?\b/;
 
 export function extractIssueNumberFromBranch(branchName: string): number | null {
