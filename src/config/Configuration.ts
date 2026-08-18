@@ -101,6 +101,19 @@ export class Configuration {
     return this.get<boolean>('offlineCache.enabled', true);
   }
 
+  getClaudeCliCommand(): string {
+    return this.get<string>('claude.command', 'claude').trim() || 'claude';
+  }
+
+  getClaudePromptLanguage(): string {
+    return this.get<string>('claude.promptLanguage', 'auto');
+  }
+
+  getClaudeCliArgs(): string[] {
+    const args = this.get<string[]>('claude.args', []);
+    return Array.isArray(args) ? args.filter((a): a is string => typeof a === 'string') : [];
+  }
+
   async setGitHubToken(token: string): Promise<void> {
     await this.context.secrets.store(GITHUB_TOKEN_SECRET_KEY, token);
   }

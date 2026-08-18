@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add: **Start Claude Session** command (✨ icon next to each issue in the sidebar). Hands the issue reference — number, title and URL — to Claude: the Claude Code extension's panel if it is installed, its terminal as a second choice, otherwise a terminal running `gitIssues.claude.command` (default `claude`) in the active repository. Works the same in VS Code and Cursor, and is also reachable from the issue's right-click menu. The prompt adopts the editor display language (German UI → `Respond in German.`), configurable via `gitIssues.claude.promptLanguage` (`auto` / `off` / a language tag). Issue titles are stripped of control characters and shell-quoted before they reach a command line; both new settings are machine-scoped so a cloned repo cannot inject a command via `.vscode/settings.json`.
+
 ## 2.1.1 — 2026-05-04
 
 - Fix: clear any previously stored GitHub PAT when switching to **Sign in with GitHub**, so the new VS Code session is actually used instead of falling back to the stale PAT (which surfaced as "Bad credentials").

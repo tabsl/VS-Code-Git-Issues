@@ -15,6 +15,7 @@ Manage GitHub and GitLab issues directly from VS Code. Browse, create, edit, and
 - **Slash-Command Helper** — Insert common GitLab quick actions (`/close`, `/assign`, `/label`, `/milestone`, …) from a Quick Pick. GitLab parses them on submit; for GitHub the picker shows that the snippets are inserted as plain text
 - **Search & Filter** — Full-text search across loaded issues, plus filters for state (open/closed/all), sort (created/updated/comments), user scope (assigned to me / created by me / everyone), labels (multi-select) and milestone
 - **Open in Browser** — Quickly jump to the issue in your browser
+- **Start a Claude Session** — Hand an issue to Claude with one click. Uses the Claude Code extension when it is installed (VS Code and Cursor alike), otherwise runs the `claude` CLI in a terminal at the repo root
 - **Assignment Indicator** — Issues assigned to you are marked with a person icon in the sidebar; a one-click toggle in the title bar limits the list to your issues
 - **File Upload (GitLab)** — Drag-and-drop, paste images from the clipboard, or pick a file when commenting on or editing GitLab issues
 - **Multi-Repo Workspaces** — Detects all git repos in your workspace, including nested ones (monorepos with sibling repos like `app/`, `api/`, `site/`). The active repo follows your editor; pin a specific one via `Git Issues: Select Repository`.
@@ -52,6 +53,9 @@ When you sign in via the VS Code GitHub account, the extension reuses your exist
 | `gitIssues.defaultState` | `open` | Default issue filter: `open`, `closed`, or `all` |
 | `gitIssues.defaultSort` | `created` | Sort order: `created`, `updated`, or `comments` |
 | `gitIssues.autoRefreshInterval` | `0` | Auto-refresh in seconds (0 = disabled) |
+| `gitIssues.claude.promptLanguage` | `auto` | Language Claude is asked to answer in: `auto` follows the editor display language, `off` disables the hint, or a tag like `de` / `fr` |
+| `gitIssues.claude.command` | `claude` | CLI used for **Start Claude Session** when the Claude Code extension is not installed (machine-scoped) |
+| `gitIssues.claude.args` | `[]` | Extra arguments placed before the prompt, e.g. `["--model", "opus"]` (machine-scoped) |
 
 ## Commands
 
@@ -68,6 +72,7 @@ All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+
 - **Git Issues: Select Repository** — In multi-repo workspaces, pick which repo's issues to show (also available as a 📁 icon in the view title bar when more than one repo is detected). Once picked, the choice is persisted per workspace and disables auto-follow.
 - **Git Issues: Create Branch from Issue** — Create and switch to a new branch named after an issue (right-click an issue in the sidebar)
 - **Git Issues: Open in Browser** — Open the selected issue in your default browser (also available as a 🌐 icon next to issues in the sidebar)
+- **Git Issues: Start Claude Session** — Start a Claude session for the selected issue (also available as a ✨ icon next to issues in the sidebar). The prompt contains the issue number, title and URL, plus a hint to answer in your editor's display language (German UI → `Respond in German.`; configurable via `gitIssues.claude.promptLanguage`). If the [Claude Code extension](https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code) is installed, the session opens in its panel (or its terminal); otherwise a terminal runs `gitIssues.claude.command` in the active repository.
 - **Git Issues: Sign in to GitHub / Configure Token** — Sign in via VS Code's GitHub account (recommended) or paste a Personal Access Token
 - **Git Issues: Configure GitLab Token** — Set a GitLab PAT for a specific host (supports multiple GitLab instances)
 - **Git Issues: Manage GitLab Tokens** — List and remove configured GitLab tokens per host

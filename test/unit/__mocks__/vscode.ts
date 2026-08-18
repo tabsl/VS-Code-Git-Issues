@@ -141,6 +141,12 @@ export const window = {
   showInputBox: vi.fn(),
   showQuickPick: vi.fn(),
   createWebviewPanel: vi.fn(),
+  createTerminal: vi.fn(() => ({
+    name: '',
+    show: vi.fn(),
+    sendText: vi.fn(),
+    dispose: vi.fn(),
+  })),
   activeTextEditor: undefined,
 };
 
@@ -148,10 +154,13 @@ export const commands = {
   registerCommand: vi.fn((id: string, callback: (...args: any[]) => any) => {
     return { dispose: vi.fn() };
   }),
+  executeCommand: vi.fn(async (..._args: any[]) => undefined),
+  getCommands: vi.fn(async (_filterInternal?: boolean) => [] as string[]),
 };
 
 export const env = {
   openExternal: vi.fn(),
+  language: 'en',
 };
 
-export const ViewColumn = { One: 1, Two: 2, Three: 3 };
+export const ViewColumn = { Active: -1, Beside: -2, One: 1, Two: 2, Three: 3 };

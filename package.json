@@ -130,6 +130,12 @@
         "category": "Git Issues"
       },
       {
+        "command": "gitIssues.startClaudeSession",
+        "title": "Start Claude Session",
+        "icon": "$(sparkle)",
+        "category": "Git Issues"
+      },
+      {
         "command": "gitIssues.referenceInCommit",
         "title": "Reference in Commit",
         "icon": "$(git-commit)",
@@ -221,6 +227,16 @@
           "command": "gitIssues.openInBrowser",
           "when": "view == gitIssues && (viewItem == issue-open || viewItem == issue-closed)",
           "group": "inline@3"
+        },
+        {
+          "command": "gitIssues.startClaudeSession",
+          "when": "view == gitIssues && (viewItem == issue-open || viewItem == issue-closed)",
+          "group": "inline@4"
+        },
+        {
+          "command": "gitIssues.startClaudeSession",
+          "when": "view == gitIssues && (viewItem == issue-open || viewItem == issue-closed)",
+          "group": "1_actions@1"
         }
       ]
     },
@@ -278,6 +294,26 @@
           "type": "boolean",
           "default": true,
           "description": "Show an unread badge on the Git Issues view container when issues you authored or are assigned to have been updated since you last opened the sidebar."
+        },
+        "gitIssues.claude.command": {
+          "type": "string",
+          "default": "claude",
+          "scope": "machine",
+          "description": "Command used to start a Claude session in the terminal when the Claude Code extension is not installed. Machine-scoped: workspace overrides are intentionally disabled so a cloned repository cannot run an arbitrary command via .vscode/settings.json."
+        },
+        "gitIssues.claude.promptLanguage": {
+          "type": "string",
+          "default": "auto",
+          "description": "Language Claude is asked to respond in for Start Claude Session. 'auto' follows the editor display language (e.g. German UI -> 'Respond in German.'), 'off' sends no language instruction, or set a language tag such as 'de', 'fr' or 'en'."
+        },
+        "gitIssues.claude.args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "machine",
+          "description": "Extra arguments passed before the prompt (e.g. [\"--model\", \"opus\"], or [\"chat\"] for a different CLI). Machine-scoped for the same reason as gitIssues.claude.command."
         },
         "gitIssues.issuePanel.location": {
           "type": "string",

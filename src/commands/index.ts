@@ -9,6 +9,7 @@ import { GitOperations } from '../git/GitOperations';
 import { setSearchDescription } from '../extension';
 import { loadIssueTemplates, type IssueTemplate } from '../templates/IssueTemplates';
 import { extractIssueNumberFromBranch } from '../git/BranchIssueLinker';
+import { buildIssuePrompt, resolvePromptLanguage, startClaudeSession } from '../ai/ClaudeSession';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -372,6 +373,37 @@ export function registerCommands(
       } catch (err) {
         vscode.window.showErrorMessage(
           `Failed to create branch: ${err instanceof Error ? err.message : err}`
+        );
+      }
+    })
+  );
+
+  // Start Claude Session — hands the issue reference to the Claude Code
+  // extension if it is installed, otherwise runs the configured CLI in a terminal.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitIssues.startClaudeSession', async (item: IssueTreeItem) => {
+      const provider = getProvider();
+      if (!provider || !item?.issue) { return; }
+
+      const repo = getActiveRepository();
+      const prompt = buildIssuePrompt(
+        item.issue,
+        provider.getIssueUrl(item.issue.number),
+        resolvePromptLanguage(config.getClaudePromptLanguage(), vscode.env.language)
+      );
+
+      try {
+        await startClaudeSession(prompt, {
+          cwd: repo?.rootPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+          terminalName: `Claude #${item.issue.number}`,
+          cli: {
+            command: config.getClaudeCliCommand(),
+            args: config.getClaudeCliArgs(),
+          },
+        });
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `Failed to start Claude session: ${err instanceof Error ? err.message : err}`
         );
       }
     })

@@ -25,6 +25,9 @@ function createMockConfig(): Configuration {
     hasLegacyGitLabToken: vi.fn().mockResolvedValue(false),
     removeLegacyGitLabToken: vi.fn().mockResolvedValue({ configCleanupFailed: false }),
     getGitLabUrl: vi.fn().mockReturnValue('https://gitlab.com'),
+    getClaudeCliCommand: vi.fn().mockReturnValue('claude'),
+    getClaudeCliArgs: vi.fn().mockReturnValue([]),
+    getClaudePromptLanguage: vi.fn().mockReturnValue('auto'),
   } as unknown as Configuration;
 }
 
@@ -88,8 +91,8 @@ describe('registerCommands', () => {
     registerCommands(ctx, config, tdp as any, () => provider, () => null, reinitializeProvider);
   });
 
-  it('registers all 18 commands', () => {
-    expect(registeredCommands.size).toBe(18);
+  it('registers all 19 commands', () => {
+    expect(registeredCommands.size).toBe(19);
     expect(registeredCommands.has('gitIssues.referenceInCommit')).toBe(true);
     expect(registeredCommands.has('gitIssues.refresh')).toBe(true);
     expect(registeredCommands.has('gitIssues.search')).toBe(true);
@@ -108,6 +111,7 @@ describe('registerCommands', () => {
     expect(registeredCommands.has('gitIssues.configureGitHubToken')).toBe(true);
     expect(registeredCommands.has('gitIssues.configureGitLabToken')).toBe(true);
     expect(registeredCommands.has('gitIssues.manageGitLabTokens')).toBe(true);
+    expect(registeredCommands.has('gitIssues.startClaudeSession')).toBe(true);
   });
 
   describe('refresh', () => {
@@ -271,6 +275,26 @@ describe('registerCommands', () => {
       expect(config.removeLegacyGitLabToken).toHaveBeenCalled();
       expect(config.removeGitLabToken).not.toHaveBeenCalled();
       expect(reinitializeProvider).toHaveBeenCalled();
+    });
+  });
+
+  describe('startClaudeSession', () => {
+    it('passes the issue reference to the configured CLI when no Claude extension is present', async () => {
+      (vscode.commands.getCommands as any).mockResolvedValue([]);
+      const terminal = { show: vi.fn(), sendText: vi.fn() };
+      (vscode.window.createTerminal as any).mockReturnValue(terminal);
+      const issue = { number: 42, title: 'Broken export', state: 'open' };
+
+      await registeredCommands.get('gitIssues.startClaudeSession')!({ issue });
+
+      expect(terminal.sendText).toHaveBeenCalledWith(
+        "claude 'Work on issue #42 \"Broken export\": https://github.com/o/r/issues/1'"
+      );
+    });
+
+    it('does nothing without an issue', async () => {
+      await registeredCommands.get('gitIssues.startClaudeSession')!(undefined);
+      expect(vscode.window.createTerminal).not.toHaveBeenCalled();
     });
   });
 });
