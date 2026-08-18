@@ -84,12 +84,12 @@ export async function activate(context: vscode.ExtensionContext) {
       if (context.workspaceState.get<string>(ACTIVE_REPO_KEY)) {
         return;
       }
-      const file = editor?.document.uri.fsPath;
+      const file = editor?.document.uri;
       if (!file || detectedRepositories.length < 2) {
         return;
       }
       const match = detectedRepositories
-        .filter(d => isInside(file, d.rootPath))
+        .filter(d => RepositoryResolver.contains(d, file))
         .sort((a, b) => b.rootPath.length - a.rootPath.length)[0];
       if (match && match.rootPath !== activeRepository?.rootPath) {
         log.appendLine(`Active editor switched — following repo to ${match.displayName} (${match.remote.owner}/${match.remote.repo})`);
@@ -120,7 +120,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // matching issue (`123-…`, `feature/issue-123-…`, …).
     const lastBranchByRepo = new Map<string, string>();
     const wireBranchWatcher = (repo: typeof gitApi.repositories[number]) => {
-      const repoKey = repo.rootUri.fsPath;
+      const repoKey = RepositoryResolver.keyFor(repo.rootUri);
       lastBranchByRepo.set(repoKey, repo.state.HEAD?.name ?? '');
       context.subscriptions.push(
         repo.state.onDidChange(() => {
@@ -242,7 +242,7 @@ async function initProvider(
   }
 
   log.appendLine(
-    `Workspace folders: ${folders.map(f => f.uri.fsPath).join(', ')}`
+    `Workspace folders: ${folders.map(f => f.uri.toString()).join(', ')}`
   );
 
   detectedRepositories = await RepositoryResolver.detectAll();
@@ -272,7 +272,7 @@ async function initProvider(
   updateTreeViewDescription();
 
   try {
-    const result = await ProviderFactory.create(selected.rootPath, {
+    const result = await ProviderFactory.create(selected, {
       githubToken: await config.getGitHubAuthToken(),
       getGitLabToken: (host) => config.getGitLabToken(host),
       gitlabUrl: config.getGitLabUrl(),
@@ -280,12 +280,9 @@ async function initProvider(
 
     currentProvider = result.provider;
 
-    if (result.reason === 'no-remote') {
-      log.appendLine('No git remote "origin" found');
-      treeDataProvider.setState('no-remote');
-    } else if (result.reason === 'no-token') {
-      const platform = result.remote!.platform;
-      log.appendLine(`Detected ${platform} repo (${result.remote!.host}/${result.remote!.owner}/${result.remote!.repo}) but no token configured`);
+    if (result.reason === 'no-token') {
+      const platform = result.remote.platform;
+      log.appendLine(`Detected ${platform} repo (${result.remote.host}/${result.remote.owner}/${result.remote.repo}) but no token configured`);
       treeDataProvider.setState('no-token', platform);
     } else {
       const info = result.provider!.getRepositoryInfo();
@@ -324,10 +321,10 @@ function pickInitialRepository(
   }
 
   // 3. Prefer the repo containing the file in the active editor.
-  const activeFile = vscode.window.activeTextEditor?.document.uri.fsPath;
+  const activeFile = vscode.window.activeTextEditor?.document.uri;
   if (activeFile) {
     const matching = repos
-      .filter(d => isInside(activeFile, d.rootPath))
+      .filter(d => RepositoryResolver.contains(d, activeFile))
       .sort((a, b) => b.rootPath.length - a.rootPath.length); // deepest first
     if (matching.length > 0) {
       return matching[0];
@@ -336,20 +333,12 @@ function pickInitialRepository(
 
   // 4. Avoid worktrees as default — they share an origin with the main repo
   //    and are rarely the user's intended target.
-  const nonWorktree = repos.filter(d => !isWorktreePath(d.rootPath));
+  const nonWorktree = repos.filter(d => d.isVirtual || !isWorktreePath(d.rootPath));
   if (nonWorktree.length > 0) {
     return nonWorktree[0];
   }
 
   return repos[0];
-}
-
-function isInside(filePath: string, rootPath: string): boolean {
-  if (filePath === rootPath) {
-    return true;
-  }
-  const prefix = rootPath.endsWith(path.sep) ? rootPath : rootPath + path.sep;
-  return filePath.startsWith(prefix);
 }
 
 function isWorktreePath(p: string): boolean {

@@ -27,6 +27,26 @@ export class GitRemoteDetector {
     }
   }
 
+  // Remote Repositories mounts a repo as `vscode-vfs://github/<owner>/<repo>`
+  // (the authority carries an account suffix when several GitHub accounts are
+  // signed in). There is no checkout to ask `git remote` about, so owner/repo
+  // come straight from the URI.
+  static parseVirtualUri(uri: string): RemoteInfo | null {
+    const match = uri.match(
+      /^vscode-vfs:\/\/github(?:\+[^/]*)?\/([^/?#]+)\/([^/?#]+)/i
+    );
+    if (!match) {
+      return null;
+    }
+
+    return {
+      platform: 'github',
+      owner: decodeURIComponent(match[1]),
+      repo: decodeURIComponent(match[2]).replace(/\.git$/, ''),
+      host: 'github.com',
+    };
+  }
+
   static parseRemoteUrl(url: string): RemoteInfo | null {
     // HTTPS: https://host/owner/repo.git or https://host/group/subgroup/repo.git
     const httpsMatch = url.match(

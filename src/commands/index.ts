@@ -71,7 +71,7 @@ export function registerCommands(
       }
 
       const { IssueWebviewPanel } = await import('../webview/IssueWebviewPanel');
-      IssueWebviewPanel.show(context.extensionUri, provider, issueNumber);
+      IssueWebviewPanel.show(context.extensionUri, provider, issueNumber, getActiveRepository());
     })
   );
 
@@ -95,6 +95,7 @@ export function registerCommands(
           context.extensionUri,
           provider,
           issueNumber,
+          getActiveRepository(),
           { location: 'beside' }
         );
       }
@@ -112,7 +113,7 @@ export function registerCommands(
 
       const repo = getActiveRepository();
       let template: IssueTemplate | null = null;
-      if (repo) {
+      if (repo && !repo.isVirtual) {
         const templates = await loadIssueTemplates(repo.rootPath, provider.platform);
         if (templates.length > 0) {
           type Item = vscode.QuickPickItem & { template: IssueTemplate | null };
@@ -351,10 +352,13 @@ export function registerCommands(
       if (!item?.issue) { return; }
 
       const repo = getActiveRepository();
-      const folderPath = repo?.rootPath
-        ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      const folderPath = RepositoryResolver.localCheckout(repo);
       if (!folderPath) {
-        vscode.window.showErrorMessage('No workspace folder found');
+        vscode.window.showErrorMessage(
+          repo?.isVirtual
+            ? 'Git Issues: Cannot create a branch — this repository is opened as a Remote Repository and has no local checkout.'
+            : 'No workspace folder found'
+        );
         return;
       }
 
@@ -386,6 +390,13 @@ export function registerCommands(
       if (!provider || !item?.issue) { return; }
 
       const repo = getActiveRepository();
+      if (repo?.isVirtual) {
+        vscode.window.showErrorMessage(
+          'Git Issues: Cannot start a Claude session — this repository is opened as a Remote Repository and has no local checkout.'
+        );
+        return;
+      }
+      const cwd = RepositoryResolver.localCheckout(repo) ?? undefined;
       const prompt = buildIssuePrompt(
         item.issue,
         provider.getIssueUrl(item.issue.number),
@@ -394,7 +405,7 @@ export function registerCommands(
 
       try {
         await startClaudeSession(prompt, {
-          cwd: repo?.rootPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+          cwd,
           terminalName: `Claude #${item.issue.number}`,
           cli: {
             command: config.getClaudeCliCommand(),

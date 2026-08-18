@@ -164,4 +164,47 @@ describe('GitRemoteDetector', () => {
       expect(GitRemoteDetector.parseRemoteUrl('')).toBeNull();
     });
   });
+
+  describe('parseVirtualUri', () => {
+    it('resolves a Remote Repositories URI', () => {
+      expect(
+        GitRemoteDetector.parseVirtualUri('vscode-vfs://github/octocat/hello-world')
+      ).toEqual({
+        platform: 'github',
+        owner: 'octocat',
+        repo: 'hello-world',
+        host: 'github.com',
+      });
+    });
+
+    it('resolves an account-scoped authority', () => {
+      expect(
+        GitRemoteDetector.parseVirtualUri('vscode-vfs://github+7a3f/tabsl/VS-Code-Git-Issues')
+      ).toEqual({
+        platform: 'github',
+        owner: 'tabsl',
+        repo: 'VS-Code-Git-Issues',
+        host: 'github.com',
+      });
+    });
+
+    it('ignores trailing path segments below the repository root', () => {
+      expect(
+        GitRemoteDetector.parseVirtualUri('vscode-vfs://github/octocat/hello/src/index.ts')
+      ).toMatchObject({ owner: 'octocat', repo: 'hello' });
+    });
+
+    it('returns null for unsupported virtual hosts and plain paths', () => {
+      expect(
+        GitRemoteDetector.parseVirtualUri('vscode-vfs://azurerepos/org/project/repo')
+      ).toBeNull();
+      // github.com is hardcoded as the host, so a GitHub Enterprise authority
+      // must not be claimed here — it would query the wrong API.
+      expect(
+        GitRemoteDetector.parseVirtualUri('vscode-vfs://github-enterprise/org/repo')
+      ).toBeNull();
+      expect(GitRemoteDetector.parseVirtualUri('file:///Users/me/repo')).toBeNull();
+      expect(GitRemoteDetector.parseVirtualUri('vscode-vfs://github/octocat')).toBeNull();
+    });
+  });
 });

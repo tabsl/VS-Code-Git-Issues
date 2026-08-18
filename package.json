@@ -33,6 +33,12 @@
     "workspaceContains:.git"
   ],
   "main": "./dist/extension.js",
+  "capabilities": {
+    "virtualWorkspaces": {
+      "supported": "limited",
+      "description": "Issues can be browsed and edited in Remote Repositories. Creating a branch, starting a Claude session and issue templates need a local checkout."
+    }
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [

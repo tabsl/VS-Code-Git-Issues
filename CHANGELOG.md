@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix: repositories opened via **Remote Repositories** (`vscode-vfs://github/<owner>/<repo>`) are now detected. Such workspaces have no checkout and no entry in VS Code's Git API, so both detection paths came up empty and the view stayed on "No git remote "origin" found" / "No provider available" ([#3](https://github.com/tabsl/VS-Code-Git-Issues/issues/3)). Owner and repo are read straight from the workspace URI, and the provider is built from the already-detected remote instead of shelling out to `git remote get-url origin` a second time. Branch creation, **Start Claude Session** and issue templates need a working copy and now say so instead of failing obscurely — the issue panel's branch button gets the active repository passed in, so it can no longer fall back to an unrelated local folder in a mixed workspace.
+
 - Add: **Start Claude Session** command (✨ icon next to each issue in the sidebar). Hands the issue reference — number, title and URL — to Claude: the Claude Code extension's panel if it is installed, its terminal as a second choice, otherwise a terminal running `gitIssues.claude.command` (default `claude`) in the active repository. Works the same in VS Code and Cursor, and is also reachable from the issue's right-click menu. The prompt adopts the editor display language (German UI → `Respond in German.`), configurable via `gitIssues.claude.promptLanguage` (`auto` / `off` / a language tag). Issue titles are stripped of control characters and shell-quoted before they reach a command line; both new settings are machine-scoped so a cloned repo cannot inject a command via `.vscode/settings.json`.
 
 ## 2.1.1 — 2026-05-04

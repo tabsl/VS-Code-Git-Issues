@@ -1,4 +1,5 @@
-import { GitRemoteDetector, type RemoteInfo } from '../git/GitRemoteDetector';
+import type { DetectedRepository } from '../git/RepositoryResolver';
+import type { RemoteInfo } from '../git/GitRemoteDetector';
 import { GitHubProvider } from './GitHubProvider';
 import { GitLabProvider } from './GitLabProvider';
 import type { IssueProvider } from './IssueProvider';
@@ -11,25 +12,21 @@ export interface ProviderConfig {
 
 export interface CreateResult {
   provider: IssueProvider | null;
-  remote: RemoteInfo | null;
-  reason: 'ok' | 'no-remote' | 'no-token';
+  remote: RemoteInfo;
+  reason: 'ok' | 'no-token';
 }
 
 export class ProviderFactory {
   private static cache = new Map<string, IssueProvider>();
 
   static async create(
-    workspaceRoot: string,
+    repository: DetectedRepository,
     config: ProviderConfig
   ): Promise<CreateResult> {
-    const cached = this.cache.get(workspaceRoot);
+    const remote = repository.remote;
+    const cached = this.cache.get(repository.rootPath);
     if (cached) {
-      return { provider: cached, remote: null, reason: 'ok' };
-    }
-
-    const remote = await GitRemoteDetector.detect(workspaceRoot);
-    if (!remote) {
-      return { provider: null, remote: null, reason: 'no-remote' };
+      return { provider: cached, remote, reason: 'ok' };
     }
 
     let provider: IssueProvider;
@@ -54,7 +51,7 @@ export class ProviderFactory {
       );
     }
 
-    this.cache.set(workspaceRoot, provider);
+    this.cache.set(repository.rootPath, provider);
     return { provider, remote, reason: 'ok' };
   }
 

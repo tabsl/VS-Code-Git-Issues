@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto';
 import type { IssueProvider } from '../providers/IssueProvider';
 import type { ReactionContent, UpdateIssueData } from '../types';
 import { GitOperations } from '../git/GitOperations';
+import { RepositoryResolver, type DetectedRepository } from '../git/RepositoryResolver';
 
 const ALLOWED_REACTIONS: ReadonlyArray<ReactionContent> = [
   '+1', '-1', 'laugh', 'hooray', 'confused', 'heart', 'rocket', 'eyes',
@@ -66,7 +67,8 @@ export class IssueWebviewPanel {
     panel: vscode.WebviewPanel,
     private extensionUri: vscode.Uri,
     private provider: IssueProvider,
-    private issueNumber: number
+    private issueNumber: number,
+    private repository: DetectedRepository | null
   ) {
     this.panel = panel;
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
@@ -79,6 +81,7 @@ export class IssueWebviewPanel {
     extensionUri: vscode.Uri,
     provider: IssueProvider,
     issueNumber: number,
+    repository: DetectedRepository | null = null,
     options: { location?: 'active' | 'beside' } = {}
   ): void {
     const targetColumn = resolveTargetColumn(options.location);
@@ -86,6 +89,7 @@ export class IssueWebviewPanel {
     if (IssueWebviewPanel.currentPanel) {
       IssueWebviewPanel.currentPanel.provider = provider;
       IssueWebviewPanel.currentPanel.issueNumber = issueNumber;
+      IssueWebviewPanel.currentPanel.repository = repository;
       IssueWebviewPanel.currentPanel.panel.reveal(targetColumn);
       IssueWebviewPanel.currentPanel.panel.webview.html =
         IssueWebviewPanel.currentPanel.getHtml();
@@ -110,7 +114,8 @@ export class IssueWebviewPanel {
       panel,
       extensionUri,
       provider,
-      issueNumber
+      issueNumber,
+      repository
     );
   }
 
@@ -296,9 +301,13 @@ export class IssueWebviewPanel {
 
   private async handleCreateBranch(): Promise<void> {
     try {
-      const folder = vscode.workspace.workspaceFolders?.[0];
-      if (!folder) {
-        throw new Error('No workspace folder found');
+      const checkout = RepositoryResolver.localCheckout(this.repository);
+      if (!checkout) {
+        throw new Error(
+          this.repository?.isVirtual
+            ? 'This repository is opened as a Remote Repository and has no local checkout.'
+            : 'No workspace folder found'
+        );
       }
 
       const issue = await this.provider.getIssue(this.issueNumber);
@@ -313,7 +322,7 @@ export class IssueWebviewPanel {
         return;
       }
 
-      GitOperations.createBranch(folder.uri.fsPath, branchName);
+      GitOperations.createBranch(checkout, branchName);
       vscode.window.showInformationMessage(`Switched to new branch: ${branchName}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

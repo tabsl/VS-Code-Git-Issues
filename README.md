@@ -87,6 +87,12 @@ If your workspace contains multiple git repositories (e.g. a parent folder with 
 
 The Quick Pick (`Git Issues: Select Repository`, or the repo icon in the view's title bar) lets you override this at any time.
 
+## Remote Repositories
+
+Repositories opened with the **Remote Repositories** extension (`vscode-vfs://github/<owner>/<repo>`) work without a local clone — the owner and repo come from the workspace URI, so browsing, creating and editing issues behaves exactly as in a normal checkout.
+
+Three things need a working copy and are unavailable there: creating a branch from an issue, **Start Claude Session**, and issue templates from `.github/ISSUE_TEMPLATE` / `.gitlab/issue_templates`. They report this instead of failing silently.
+
 ## License
 
 [MIT](LICENSE)
