@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.2.1 — 2026-10-08
+
 - Fix: the sidebar no longer stops at 30 issues. The list was loaded as a single API page of 30, so older open issues never appeared and there was no way to reach them. The extension now pages through GitHub and GitLab results up to the new setting `gitIssues.maxIssues` (default `100`); pull requests returned by GitHub's issues endpoint no longer count towards the limit.
 
 ## 2.2.0 — 2026-08-18
