@@ -93,6 +93,11 @@ export class Configuration {
     return this.get<'created' | 'updated' | 'comments'>('defaultSort', 'created');
   }
 
+  getMaxIssues(): number {
+    const value = Math.floor(this.get<number>('maxIssues', 100));
+    return Number.isFinite(value) && value >= 1 ? value : 100;
+  }
+
   getAutoRefreshInterval(): number {
     return this.get<number>('autoRefreshInterval', 0);
   }

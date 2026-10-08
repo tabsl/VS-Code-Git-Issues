@@ -87,6 +87,7 @@ export interface ListIssuesOptions {
   direction?: 'asc' | 'desc';
   page?: number;
   perPage?: number;
+  limit?: number;
 }
 
 export interface RepositoryInfo {

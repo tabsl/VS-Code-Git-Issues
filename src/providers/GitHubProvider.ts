@@ -44,7 +44,7 @@ export class GitHubProvider implements IssueProvider {
   }
 
   async listIssues(options: ListIssuesOptions): Promise<Issue[]> {
-    const response = await this.octokit.rest.issues.listForRepo({
+    const params = {
       owner: this.owner,
       repo: this.repo,
       state: options.state === 'all' ? 'all' : options.state === 'closed' ? 'closed' : 'open',
@@ -55,6 +55,14 @@ export class GitHubProvider implements IssueProvider {
       assignee: options.assignee,
       sort: options.sort || 'created',
       direction: options.direction || 'desc',
+    } as const;
+
+    if (options.limit) {
+      return this.listIssuesUpTo(params, options.limit);
+    }
+
+    const response = await this.octokit.rest.issues.listForRepo({
+      ...params,
       page: options.page,
       per_page: options.perPage || 30,
     });
@@ -63,6 +71,29 @@ export class GitHubProvider implements IssueProvider {
     return response.data
       .filter((item) => !item.pull_request)
       .map((item) => this.mapIssue(item));
+  }
+
+  private async listIssuesUpTo(
+    params: NonNullable<Parameters<Octokit['rest']['issues']['listForRepo']>[0]>,
+    limit: number
+  ): Promise<Issue[]> {
+    const issues: Issue[] = [];
+    const pages = this.octokit.paginate.iterator(this.octokit.rest.issues.listForRepo, {
+      ...params,
+      per_page: 100,
+    });
+    for await (const page of pages) {
+      for (const item of page.data) {
+        if (item.pull_request) {
+          continue;
+        }
+        issues.push(this.mapIssue(item));
+        if (issues.length >= limit) {
+          return issues;
+        }
+      }
+    }
+    return issues;
   }
 
   async getIssue(issueNumber: number): Promise<IssueDetail> {

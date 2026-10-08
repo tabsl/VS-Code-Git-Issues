@@ -62,6 +62,7 @@ When you sign in via the VS Code GitHub account, the extension reuses your exist
 | `gitIssues.gitlab.url` | `https://gitlab.com` | GitLab instance URL (for self-hosted) |
 | `gitIssues.defaultState` | `open` | Default issue filter: `open`, `closed`, or `all` |
 | `gitIssues.defaultSort` | `created` | Sort order: `created`, `updated`, or `comments` |
+| `gitIssues.maxIssues` | `100` | Maximum number of issues loaded into the sidebar (fetched in pages of 100) |
 | `gitIssues.autoRefreshInterval` | `0` | Auto-refresh in seconds (0 = disabled) |
 | `gitIssues.offlineCache.enabled` | `true` | Cache the issue list locally so the sidebar shows the last known issues instantly, then refreshes in the background |
 | `gitIssues.autoLinkBranchToIssue` | `true` | Prompt to open the matching issue when switching to a branch that contains an issue number |

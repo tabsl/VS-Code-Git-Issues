@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix: the sidebar no longer stops at 30 issues. The list was loaded as a single API page of 30, so older open issues never appeared and there was no way to reach them. The extension now pages through GitHub and GitLab results up to the new setting `gitIssues.maxIssues` (default `100`); pull requests returned by GitHub's issues endpoint no longer count towards the limit.
+
 ## 2.2.0 — 2026-08-18
 
 - Fix: repositories opened via **Remote Repositories** (`vscode-vfs://github/<owner>/<repo>`) are now detected. Such workspaces have no checkout and no entry in VS Code's Git API, so both detection paths came up empty and the view stayed on "No git remote "origin" found" / "No provider available" ([#3](https://github.com/tabsl/VS-Code-Git-Issues/issues/3)). Owner and repo are read straight from the workspace URI, and the provider is built from the already-detected remote instead of shelling out to `git remote get-url origin` a second time. Branch creation, **Start Claude Session** and issue templates need a working copy and now say so instead of failing obscurely — the issue panel's branch button gets the active repository passed in, so it can no longer fall back to an unrelated local folder in a mixed workspace.

@@ -4,6 +4,7 @@ import { GitHubProvider } from '../../src/providers/GitHubProvider';
 // Mock @octokit/rest
 vi.mock('@octokit/rest', () => {
   const mockOctokit = {
+    paginate: { iterator: vi.fn() },
     rest: {
       issues: {
         listForRepo: vi.fn(),
@@ -41,6 +42,16 @@ import { Octokit } from '@octokit/rest';
 
 function getOctokitMock() {
   return (new Octokit() as any).rest;
+}
+
+function getPaginateMock() {
+  return (new Octokit() as any).paginate;
+}
+
+async function* pagesOf(...pages: any[][]) {
+  for (const data of pages) {
+    yield { data };
+  }
 }
 
 function makeGitHubIssue(overrides: Record<string, any> = {}) {
@@ -125,6 +136,34 @@ describe('GitHubProvider', () => {
         page: 2,
         per_page: 10,
       }));
+    });
+
+    it('pages through results until the limit, skipping pull requests', async () => {
+      const paginate = getPaginateMock();
+      const firstPage = [
+        makeGitHubIssue({ number: 5 }),
+        makeGitHubIssue({ number: 4, pull_request: { url: 'pr' } }),
+        makeGitHubIssue({ number: 3 }),
+      ];
+      const secondPage = [makeGitHubIssue({ number: 2 }), makeGitHubIssue({ number: 1 })];
+      paginate.iterator.mockReturnValue(pagesOf(firstPage, secondPage));
+
+      const issues = await provider.listIssues({ state: 'open', limit: 3 });
+
+      expect(issues.map((i) => i.number)).toEqual([5, 3, 2]);
+      expect(paginate.iterator).toHaveBeenCalledWith(
+        mock.issues.listForRepo,
+        expect.objectContaining({ state: 'open', per_page: 100 })
+      );
+      expect(mock.issues.listForRepo).not.toHaveBeenCalled();
+    });
+
+    it('returns everything when fewer issues exist than the limit', async () => {
+      getPaginateMock().iterator.mockReturnValue(pagesOf([makeGitHubIssue({ number: 1 })]));
+
+      const issues = await provider.listIssues({ state: 'open', limit: 100 });
+
+      expect(issues).toHaveLength(1);
     });
   });
 

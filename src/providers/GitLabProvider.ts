@@ -68,6 +68,10 @@ export class GitLabProvider implements IssueProvider {
       comments: 'popularity',
     };
 
+    const pagination = options.limit
+      ? { perPage: Math.min(options.limit, 100), maxPages: Math.ceil(options.limit / Math.min(options.limit, 100)) }
+      : { page: options.page || 1, perPage: options.perPage || 30 };
+
     const issues = await this.gitlab.Issues.all({
       projectId: this.projectPath,
       state: stateMap[options.state || 'open'] as 'opened' | 'closed' | 'all',
@@ -76,11 +80,11 @@ export class GitLabProvider implements IssueProvider {
       assigneeUsername: options.assignee ? [options.assignee] : undefined,
       orderBy: (sortMap[options.sort || 'created'] || 'created_at') as any,
       sort: options.direction || 'desc',
-      page: options.page || 1,
-      perPage: options.perPage || 30,
+      ...pagination,
     });
 
-    return (issues as any[]).map((issue) => this.mapIssue(issue));
+    const limited = options.limit ? (issues as any[]).slice(0, options.limit) : (issues as any[]);
+    return limited.map((issue) => this.mapIssue(issue));
   }
 
   async getIssue(issueNumber: number): Promise<IssueDetail> {

@@ -281,6 +281,12 @@
           "minimum": 0,
           "description": "Auto-refresh interval in seconds (0 to disable)"
         },
+        "gitIssues.maxIssues": {
+          "type": "number",
+          "default": 100,
+          "minimum": 1,
+          "description": "Maximum number of issues loaded into the sidebar. Larger values need more API requests (100 issues per request)."
+        },
         "gitIssues.offlineCache.enabled": {
           "type": "boolean",
           "default": true,
@@ -323,7 +329,10 @@
         },
         "gitIssues.issuePanel.location": {
           "type": "string",
-          "enum": ["active", "beside"],
+          "enum": [
+            "active",
+            "beside"
+          ],
           "enumDescriptions": [
             "Open issues in the current editor column (full width).",
             "Open issues to the right of the current editor (split view)."

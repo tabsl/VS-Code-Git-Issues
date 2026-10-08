@@ -31,7 +31,8 @@ export async function activate(context: vscode.ExtensionContext) {
   const treeDataProvider = new IssueTreeDataProvider(
     config.getDefaultState(),
     config.getDefaultSort(),
-    issueCache
+    issueCache,
+    config.getMaxIssues()
   );
   treeView = vscode.window.createTreeView('gitIssues', {
     treeDataProvider,
@@ -199,6 +200,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     config.onDidChange(() => {
       log.appendLine('Configuration changed, re-initializing...');
+      treeDataProvider.setMaxIssues(config.getMaxIssues());
       treeDataProvider.setFilter({
         state: config.getDefaultState(),
         sort: config.getDefaultSort(),

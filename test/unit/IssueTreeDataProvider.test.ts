@@ -121,6 +121,20 @@ describe('IssueTreeDataProvider', () => {
       expect(children).toHaveLength(1);
       expect((children[0] as MessageTreeItem).label).toBe('Error: API limit');
     });
+
+    it('passes the configured issue limit to the provider', async () => {
+      const provider = makeProvider([]);
+      tdp = new IssueTreeDataProvider('open', 'created', null, 250);
+      tdp.setState('ready', undefined, provider);
+      await new Promise(r => setTimeout(r, 50));
+
+      expect(provider.listIssues).toHaveBeenCalledWith(expect.objectContaining({ state: 'open', limit: 250 }));
+
+      tdp.setMaxIssues(40);
+      await tdp.refresh();
+      expect(provider.listIssues).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 40 }));
+      expect(tdp.getFilter()).not.toHaveProperty('limit');
+    });
   });
 
   describe('filter state "all"', () => {

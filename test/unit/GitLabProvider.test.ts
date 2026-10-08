@@ -110,6 +110,39 @@ describe('GitLabProvider', () => {
       const issues = await provider.listIssues({ state: 'open' });
       expect(issues[0].commentCount).toBe(7);
     });
+
+    it('fetches a single page when no limit is given', async () => {
+      mockGitlab.Issues.all.mockResolvedValue([]);
+
+      await provider.listIssues({ state: 'open', perPage: 100 });
+
+      expect(mockGitlab.Issues.all).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1, perPage: 100 })
+      );
+    });
+
+    it('paginates up to the limit and trims the result', async () => {
+      mockGitlab.Issues.all.mockResolvedValue(
+        Array.from({ length: 300 }, (_, i) => makeGitLabIssue({ iid: 300 - i }))
+      );
+
+      const issues = await provider.listIssues({ state: 'open', limit: 250 });
+
+      const call = mockGitlab.Issues.all.mock.calls[0][0];
+      expect(call).toMatchObject({ perPage: 100, maxPages: 3 });
+      expect(call).not.toHaveProperty('page');
+      expect(issues).toHaveLength(250);
+    });
+
+    it('requests a single small page for a small limit', async () => {
+      mockGitlab.Issues.all.mockResolvedValue([]);
+
+      await provider.listIssues({ state: 'open', limit: 20 });
+
+      expect(mockGitlab.Issues.all).toHaveBeenCalledWith(
+        expect.objectContaining({ perPage: 20, maxPages: 1 })
+      );
+    });
   });
 
   describe('getIssue', () => {

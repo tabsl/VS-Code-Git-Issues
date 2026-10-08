@@ -30,7 +30,8 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
   constructor(
     defaultState: 'open' | 'closed' | 'all',
     defaultSort: 'created' | 'updated' | 'comments',
-    private readonly cache: IssueCache | null = null
+    private readonly cache: IssueCache | null = null,
+    private maxIssues = 100
   ) {
     this.filter.state = defaultState;
     this.filter.sort = defaultSort;
@@ -98,7 +99,7 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
           .then((u) => u.login)
           .catch(() => undefined);
       }
-      const fresh = await provider.listIssues(this.filter);
+      const fresh = await provider.listIssues({ ...this.filter, limit: this.maxIssues });
       this.issues = fresh;
       this.error = null;
       if (this.cache) {
@@ -122,6 +123,10 @@ export class IssueTreeDataProvider implements vscode.TreeDataProvider<TreeItem> 
   setFilter(filter: ListIssuesOptions): void {
     this.filter = { ...this.filter, ...filter };
     this.refresh();
+  }
+
+  setMaxIssues(maxIssues: number): void {
+    this.maxIssues = maxIssues;
   }
 
   getFilter(): ListIssuesOptions {
