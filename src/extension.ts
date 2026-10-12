@@ -355,6 +355,12 @@ function updateTreeViewDescription(): void {
   if (detectedRepositories.length > 1 && activeRepository) {
     parts.push(`${activeRepository.remote.owner}/${activeRepository.remote.repo}`);
   }
+  if (currentLabelFilter.length > 0) {
+    parts.push(`Labels: ${currentLabelFilter.join(', ')}`);
+  }
+  if (currentMilestoneFilter) {
+    parts.push(`Milestone: ${currentMilestoneFilter}`);
+  }
   if (currentSearchQuery) {
     parts.push(`🔍 ${currentSearchQuery}`);
   }
@@ -362,9 +368,21 @@ function updateTreeViewDescription(): void {
 }
 
 let currentSearchQuery = '';
+let currentLabelFilter: string[] = [];
+let currentMilestoneFilter: string | undefined;
 
 export function setSearchDescription(query: string): void {
   currentSearchQuery = query;
+  updateTreeViewDescription();
+}
+
+export function setLabelFilterDescription(labels: string[]): void {
+  currentLabelFilter = labels;
+  updateTreeViewDescription();
+}
+
+export function setMilestoneFilterDescription(milestone: string | undefined): void {
+  currentMilestoneFilter = milestone;
   updateTreeViewDescription();
 }
 

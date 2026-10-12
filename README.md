@@ -83,8 +83,8 @@ All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+
 - **Git Issues: Create Issue** — Create a new issue. If `.github/ISSUE_TEMPLATE/*.md` (GitHub) or `.gitlab/issue_templates/*.md` (GitLab) are present in the active repo, you can pick a template (or "Blank issue") that pre-fills title, body and labels.
 - **Git Issues: Filter Issues** — Change state, sort and user-scope (Everyone / Assigned to me / Created by me) in one dialog
 - **Git Issues: Toggle My Issues** — One-click toggle in the title bar that limits the list to issues assigned to you (icon switches to filled when active)
-- **Git Issues: Filter by Labels** — Multi-select Quick Pick over all repository labels (server-side filter)
-- **Git Issues: Filter by Milestone** — Pick a single milestone (with a "Clear" entry) to scope the list (server-side filter)
+- **Git Issues: Filter by Labels** — Multi-select Quick Pick over all repository labels, on GitLab including inherited group labels (server-side filter; issues must carry all selected labels). Available as a tag icon in the view title bar; the active labels are shown next to the view title
+- **Git Issues: Filter by Milestone** — Pick a single milestone (with a "Clear" entry) to scope the list (server-side filter). Available in the view's "…" menu
 - **Git Issues: Select Repository** — In multi-repo workspaces, pick which repo's issues to show (also available as a 📁 icon in the view title bar when more than one repo is detected). Once picked, the choice is persisted per workspace and disables auto-follow.
 - **Git Issues: Create Branch from Issue** — Create and switch to a new branch named after an issue (right-click an issue in the sidebar)
 - **Git Issues: Open Issue** — Open an issue's detail panel by number (the sidebar uses this when you click an issue)

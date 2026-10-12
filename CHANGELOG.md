@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- UI: **Filter by Labels** is now reachable from the sidebar (tag icon in the view title bar), **Filter by Milestone** from the view's "…" menu. Both filters already worked for GitHub and GitLab but were only available via the Command Palette. Active label and milestone filters are shown next to the view title, so a shortened list is no longer a mystery.
+
 ## 2.2.1 — 2026-10-08
 
 - Fix: the sidebar no longer stops at 30 issues. The list was loaded as a single API page of 30, so older open issues never appeared and there was no way to reach them. The extension now pages through GitHub and GitLab results up to the new setting `gitIssues.maxIssues` (default `100`); pull requests returned by GitHub's issues endpoint no longer count towards the limit.

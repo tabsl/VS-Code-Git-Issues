@@ -213,9 +213,19 @@
           "group": "navigation@5"
         },
         {
+          "command": "gitIssues.filterByLabels",
+          "when": "view == gitIssues",
+          "group": "navigation@6"
+        },
+        {
           "command": "gitIssues.selectRepository",
           "when": "view == gitIssues && gitIssues.multipleRepositories",
-          "group": "navigation@6"
+          "group": "navigation@7"
+        },
+        {
+          "command": "gitIssues.filterByMilestone",
+          "when": "view == gitIssues",
+          "group": "filter@1"
         }
       ],
       "view/item/context": [

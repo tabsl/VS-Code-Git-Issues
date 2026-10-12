@@ -6,7 +6,7 @@ import type { IssueTreeItem } from '../tree/IssueTreeItem';
 import type { DetectedRepository } from '../git/RepositoryResolver';
 import { RepositoryResolver } from '../git/RepositoryResolver';
 import { GitOperations } from '../git/GitOperations';
-import { setSearchDescription } from '../extension';
+import { setSearchDescription, setLabelFilterDescription, setMilestoneFilterDescription } from '../extension';
 import { loadIssueTemplates, type IssueTemplate } from '../templates/IssueTemplates';
 import { extractIssueNumberFromBranch } from '../git/BranchIssueLinker';
 import { buildIssuePrompt, resolvePromptLanguage, startClaudeSession } from '../ai/ClaudeSession';
@@ -263,6 +263,7 @@ export function registerCommands(
 
       const selectedLabels = picked.map((p) => p.label);
       treeDataProvider.setFilter({ labels: selectedLabels.length > 0 ? selectedLabels : undefined });
+      setLabelFilterDescription(selectedLabels);
       await vscode.commands.executeCommand(
         'setContext',
         'gitIssues.hasLabelFilter',
@@ -304,6 +305,7 @@ export function registerCommands(
       if (!picked) { return; }
 
       treeDataProvider.setFilter({ milestone: picked.milestone });
+      setMilestoneFilterDescription(picked.milestone);
       await vscode.commands.executeCommand(
         'setContext',
         'gitIssues.hasMilestoneFilter',
