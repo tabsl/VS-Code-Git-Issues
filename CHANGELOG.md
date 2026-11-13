@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add: issues of several repositories side by side. **Select Repositories** (repo icon in the view title bar) is now a multi-select over the repositories detected in the workspace; with two or more ticked, the sidebar shows one node per repo with its issue count and a `+` to create an issue right there. Opening an issue, opening it in the browser, creating a branch and starting a Claude session always use the repo the issue is listed under. State, sort, search, "my issues", labels and milestones apply to all shown repos (labels and milestones matched by name), a missing token or load error only shows under the affected repo, and the status bar and unread badge count across all of them. `gitIssues.maxIssues` now applies per repository. The selection is kept per workspace (a previously pinned repo is taken over); confirming an empty selection goes back to following the active editor.
+
+- Fix: the milestone filter returned nothing for GitHub repositories. The GitHub API only accepts the milestone number, while the sidebar filters by title; the title is now resolved to the number first.
+
+- Fix: opening two issues in quick succession could leave the issue panel showing the first one, and a late reply to a comment could show up on the wrong issue. Results that arrive after switching issues are now discarded.
+
 ## 2.3.0 — 2026-10-12
 
 - UI: **Filter by Labels** is now reachable from the sidebar (tag icon in the view title bar), **Filter by Milestone** from the view's "…" menu. Both filters already worked for GitHub and GitLab but were only available via the Command Palette. Active label and milestone filters are shown next to the view title, so a shortened list is no longer a mystery.

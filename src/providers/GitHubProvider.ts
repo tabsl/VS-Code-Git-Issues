@@ -44,14 +44,36 @@ export class GitHubProvider implements IssueProvider {
   }
 
   async listIssues(options: ListIssuesOptions): Promise<Issue[]> {
+    // The UI filters milestones by title (shared across repos), but the GitHub
+    // API only accepts the per-repo milestone number, "*" or "none".
+    let milestone = options.milestone;
+    if (milestone && milestone !== '*' && milestone !== 'none') {
+      let match: { number: number } | undefined;
+      for (let page = 1; !match; page++) {
+        const { data } = await this.octokit.rest.issues.listMilestones({
+          owner: this.owner,
+          repo: this.repo,
+          state: 'all',
+          per_page: 100,
+          page,
+        });
+        match = data.find((m) => m.title === milestone);
+        if (data.length < 100) {
+          break;
+        }
+      }
+      if (!match) {
+        return [];
+      }
+      milestone = String(match.number);
+    }
+
     const params = {
       owner: this.owner,
       repo: this.repo,
       state: options.state === 'all' ? 'all' : options.state === 'closed' ? 'closed' : 'open',
       labels: options.labels?.join(','),
-      // GitHub accepts the milestone title or its number; the title is stable
-      // across instances so it is the only value the UI ever passes here.
-      milestone: options.milestone,
+      milestone,
       assignee: options.assignee,
       sort: options.sort || 'created',
       direction: options.direction || 'desc',

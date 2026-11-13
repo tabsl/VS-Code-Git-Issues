@@ -19,11 +19,23 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
   };
 }
 
-function makeTdp(issues: Issue[], me?: string): IssueTreeDataProvider {
+function makeTdp(issues: Issue[], me?: string) {
+  return makeMultiTdp([{ repoKey: '/repo/a', issues, me }]);
+}
+
+function makeMultiTdp(repos: Array<{ repoKey: string; issues: Issue[]; me?: string; name?: string }>): IssueTreeDataProvider {
   const listeners: Array<() => void> = [];
   return {
-    getIssues: vi.fn(() => issues),
-    getCurrentUserLogin: vi.fn(() => me),
+    getRepoSnapshots: vi.fn(() =>
+      repos.map((r) => ({
+        repoKey: r.repoKey,
+        repo: r.name
+          ? { remote: { owner: r.name.split('/')[0], repo: r.name.split('/')[1] } }
+          : null,
+        issues: r.issues,
+        currentUserLogin: r.me,
+      }))
+    ),
     onDidChangeTreeData: vi.fn((listener) => {
       listeners.push(listener);
       return { dispose: vi.fn() };
@@ -94,6 +106,28 @@ describe('IssueStatusBarItem', () => {
     const sb = new IssueStatusBarItem(tdp);
     const created = (vscode.window.createStatusBarItem as any).mock.results[0].value;
     expect(created.hide).toHaveBeenCalled();
+    sb.dispose();
+  });
+
+  it('sums open and assigned counts across repos, each with its own login', () => {
+    const tdp = makeMultiTdp([
+      {
+        repoKey: '/repo/a',
+        me: 'alice',
+        issues: [
+          makeIssue({ number: 1, assignees: [{ id: 1, login: 'alice' }] }),
+          makeIssue({ number: 2, assignees: [{ id: 2, login: 'bob' }] }),
+        ],
+      },
+      {
+        repoKey: '/repo/b',
+        me: 'bob',
+        issues: [makeIssue({ number: 3, assignees: [{ id: 2, login: 'bob' }] })],
+      },
+    ]);
+    const sb = new IssueStatusBarItem(tdp);
+    const created = (vscode.window.createStatusBarItem as any).mock.results[0].value;
+    expect(created.text).toBe('$(issues) 3 · $(person) 2');
     sb.dispose();
   });
 });

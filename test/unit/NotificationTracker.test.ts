@@ -50,10 +50,22 @@ function makeTree(visible = false) {
 }
 
 function makeTdp(issues: Issue[], me?: string) {
+  return makeMultiTdp([{ repoKey: '/repo/a', issues, me }]);
+}
+
+function makeMultiTdp(repos: Array<{ repoKey: string; issues: Issue[]; me?: string; name?: string }>) {
   const dataListeners: Array<() => void> = [];
   return {
-    getIssues: vi.fn(() => issues),
-    getCurrentUserLogin: vi.fn(() => me),
+    getRepoSnapshots: vi.fn(() =>
+      repos.map((r) => ({
+        repoKey: r.repoKey,
+        repo: r.name
+          ? { remote: { owner: r.name.split('/')[0], repo: r.name.split('/')[1] } }
+          : null,
+        issues: r.issues,
+        currentUserLogin: r.me,
+      }))
+    ),
     onDidChangeTreeData: vi.fn((listener: () => void) => {
       dataListeners.push(listener);
       return { dispose: vi.fn() };
@@ -76,7 +88,6 @@ describe('NotificationTracker', () => {
       'me'
     );
     const tracker = new NotificationTracker(ctx, tree, tdp);
-    tracker.setActiveRepo('/repo/a');
     expect(tree.badge).toBeUndefined();
     tracker.dispose();
   });
@@ -99,7 +110,6 @@ describe('NotificationTracker', () => {
       'me'
     );
     const tracker = new NotificationTracker(ctx, tree, tdp);
-    tracker.setActiveRepo('/repo/a');
 
     expect(tree.badge).toEqual({
       value: 1,
@@ -123,7 +133,6 @@ describe('NotificationTracker', () => {
       'me'
     );
     const tracker = new NotificationTracker(ctx, tree, tdp);
-    tracker.setActiveRepo('/repo/a');
 
     expect(tree.badge).toBeUndefined();
     tracker.dispose();
@@ -144,7 +153,6 @@ describe('NotificationTracker', () => {
       'me'
     );
     const tracker = new NotificationTracker(ctx, tree, tdp);
-    tracker.setActiveRepo('/repo/a');
     expect(tree.badge).toBeDefined();
 
     (tree as any).__setVisible(true);
@@ -162,7 +170,6 @@ describe('NotificationTracker', () => {
       'me'
     );
     const tracker = new NotificationTracker(ctx, tree, tdp);
-    tracker.setActiveRepo('/repo/a');
     expect(tree.badge).toBeUndefined();
     tracker.dispose();
   });
@@ -185,8 +192,79 @@ describe('NotificationTracker', () => {
       'me'
     );
     const tracker = new NotificationTracker(ctx, tree, tdp);
-    tracker.setActiveRepo('/repo/a');
     expect(tree.badge).toBeUndefined();
+    tracker.dispose();
+  });
+
+  it('counts unread issues per repo with that repo\'s login and baseline', () => {
+    const ctx = makeContext();
+    (ctx.globalState as any).update('gitIssues.lastSeen:/repo/a', new Date('2026-04-01').getTime());
+    (ctx.globalState as any).update('gitIssues.lastSeen:/repo/b', new Date('2026-04-01').getTime());
+
+    const tree = makeTree(false);
+    const tdp = makeMultiTdp([
+      {
+        repoKey: '/repo/a',
+        name: 'acme/web',
+        me: 'alice',
+        issues: [makeIssue({ number: 7, updatedAt: new Date('2026-05-02'), assignees: [{ id: 1, login: 'alice' }] })],
+      },
+      {
+        repoKey: '/repo/b',
+        name: 'acme/api',
+        me: 'bob',
+        issues: [
+          makeIssue({ number: 9, updatedAt: new Date('2026-05-02'), author: { id: 2, login: 'bob' } }),
+          makeIssue({ number: 10, updatedAt: new Date('2026-05-02'), assignees: [{ id: 1, login: 'alice' }] }),
+        ],
+      },
+    ]);
+    const tracker = new NotificationTracker(ctx, tree, tdp);
+    expect(tree.badge).toEqual({ value: 2, tooltip: expect.stringContaining('2 updates') });
+    tracker.dispose();
+  });
+
+  it('names the repo in the tooltip when several repos are shown', () => {
+    const ctx = makeContext();
+    (ctx.globalState as any).update('gitIssues.lastSeen:/repo/a', new Date('2026-04-01').getTime());
+    (ctx.globalState as any).update('gitIssues.lastSeen:/repo/b', new Date('2026-06-01').getTime());
+
+    const tree = makeTree(false);
+    const tdp = makeMultiTdp([
+      {
+        repoKey: '/repo/a',
+        name: 'acme/web',
+        me: 'me',
+        issues: [makeIssue({ number: 7, updatedAt: new Date('2026-05-02'), assignees: [{ id: 1, login: 'me' }] })],
+      },
+      {
+        repoKey: '/repo/b',
+        name: 'acme/api',
+        me: 'me',
+        issues: [makeIssue({ number: 8, updatedAt: new Date('2026-05-02'), assignees: [{ id: 1, login: 'me' }] })],
+      },
+    ]);
+    const tracker = new NotificationTracker(ctx, tree, tdp);
+    expect(tree.badge).toEqual({ value: 1, tooltip: expect.stringContaining('acme/web#7') });
+    tracker.dispose();
+  });
+
+  it('marks every shown repo as read when the view becomes visible', () => {
+    const ctx = makeContext();
+    (ctx.globalState as any).update('gitIssues.lastSeen:/repo/a', new Date('2026-04-01').getTime());
+    (ctx.globalState as any).update('gitIssues.lastSeen:/repo/b', new Date('2026-04-01').getTime());
+
+    const tree = makeTree(false);
+    const tdp = makeMultiTdp([
+      { repoKey: '/repo/a', me: 'me', issues: [makeIssue({ updatedAt: new Date('2026-05-02') })] },
+      { repoKey: '/repo/b', me: 'me', issues: [makeIssue({ updatedAt: new Date('2026-05-03') })] },
+    ]);
+    const tracker = new NotificationTracker(ctx, tree, tdp);
+    (tree as any).__setVisible(true);
+
+    const get = (k: string) => (ctx.globalState as any).get(k, 0);
+    expect(get('gitIssues.lastSeen:/repo/a')).toBe(new Date('2026-05-02').getTime());
+    expect(get('gitIssues.lastSeen:/repo/b')).toBe(new Date('2026-05-03').getTime());
     tracker.dispose();
   });
 });

@@ -1,8 +1,8 @@
-import * as path from 'path';
 import * as vscode from 'vscode';
 import { Configuration } from './config/Configuration';
 import { ProviderFactory } from './providers/ProviderFactory';
 import { RepositoryResolver, type DetectedRepository } from './git/RepositoryResolver';
+import { RepositorySelection, type RepoContext } from './git/RepositorySelection';
 import { IssueTreeDataProvider } from './tree/IssueTreeDataProvider';
 import { registerCommands } from './commands';
 import type { IssueProvider } from './providers/IssueProvider';
@@ -11,13 +11,12 @@ import { IssueStatusBarItem } from './ui/StatusBarItem';
 import { NotificationTracker } from './ui/NotificationTracker';
 import { IssueCache } from './cache/IssueCache';
 
-const ACTIVE_REPO_KEY = 'gitIssues.activeRepositoryPath';
-
 let currentProvider: IssueProvider | null = null;
 let activeRepository: DetectedRepository | null = null;
 let detectedRepositories: DetectedRepository[] = [];
+let repoContexts: RepoContext[] = [];
+let initGeneration = 0;
 let treeView: vscode.TreeView<unknown> | null = null;
-let notificationTrackerRef: NotificationTracker | null = null;
 const log = vscode.window.createOutputChannel('Git Issues');
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -43,9 +42,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const statusBarItem = new IssueStatusBarItem(treeDataProvider);
   context.subscriptions.push(statusBarItem);
 
-  const notificationTracker = new NotificationTracker(context, treeView, treeDataProvider);
-  notificationTrackerRef = notificationTracker;
-  context.subscriptions.push(notificationTracker);
+  context.subscriptions.push(new NotificationTracker(context, treeView, treeDataProvider));
 
   // Commands
   registerCommands(
@@ -54,13 +51,11 @@ export async function activate(context: vscode.ExtensionContext) {
     treeDataProvider,
     () => currentProvider,
     () => activeRepository,
-    async (folderPath?: string) => {
-      if (folderPath !== undefined) {
-        await context.workspaceState.update(ACTIVE_REPO_KEY, folderPath);
-      }
+    async () => {
       ProviderFactory.clear();
       await initProvider(context, config, treeDataProvider);
-    }
+    },
+    () => repoContexts
   );
 
   // Initialize provider
@@ -79,10 +74,10 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // Follow the active editor to switch repos automatically — but only while
-  // the user hasn't pinned a repo via the Quick Pick (which sets ACTIVE_REPO_KEY).
+  // the user hasn't picked repos via the Quick Pick.
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(editor => {
-      if (context.workspaceState.get<string>(ACTIVE_REPO_KEY)) {
+      if (RepositorySelection.isPinned(context.workspaceState)) {
         return;
       }
       const file = editor?.document.uri;
@@ -154,7 +149,7 @@ export async function activate(context: vscode.ExtensionContext) {
     if (!issueNumber) {
       return;
     }
-    if (activeRepository && activeRepository.rootPath !== repoKey) {
+    if (!repoContexts.some(c => c.repo.rootPath === repoKey)) {
       return;
     }
     log.appendLine(`Branch "${branchName}" → issue #${issueNumber}`);
@@ -166,7 +161,7 @@ export async function activate(context: vscode.ExtensionContext) {
       )
       .then((choice) => {
         if (choice === 'Open Issue') {
-          vscode.commands.executeCommand('gitIssues.openIssue', issueNumber);
+          vscode.commands.executeCommand('gitIssues.openIssue', issueNumber, repoKey);
         } else if (choice === 'Don’t ask again') {
           cfg.update('autoLinkBranchToIssue', false, vscode.ConfigurationTarget.Global);
         }
@@ -231,14 +226,21 @@ async function initProvider(
   config: Configuration,
   treeDataProvider: IssueTreeDataProvider
 ): Promise<void> {
+  // Overlapping runs (repo detection, selection, config change) must not let a
+  // slower, older run overwrite the state of the newer one.
+  const generation = ++initGeneration;
   const folders = vscode.workspace.workspaceFolders;
   if (!folders || folders.length === 0) {
     log.appendLine('No workspace folder found');
     currentProvider = null;
     activeRepository = null;
     detectedRepositories = [];
+    repoContexts = [];
     updateTreeViewDescription();
     await updateMultiRepoContext();
+    if (generation !== initGeneration) {
+      return;
+    }
     treeDataProvider.setState('no-workspace');
     return;
   }
@@ -247,104 +249,75 @@ async function initProvider(
     `Workspace folders: ${folders.map(f => f.uri.toString()).join(', ')}`
   );
 
-  detectedRepositories = await RepositoryResolver.detectAll();
+  const detected = await RepositoryResolver.detectAll();
+  if (generation !== initGeneration) {
+    return;
+  }
+  detectedRepositories = detected;
   await updateMultiRepoContext();
+  if (generation !== initGeneration) {
+    return;
+  }
 
   if (detectedRepositories.length === 0) {
     log.appendLine('No git remote "origin" found in any workspace folder');
     currentProvider = null;
     activeRepository = null;
-    notificationTrackerRef?.setActiveRepo(null);
+    repoContexts = [];
     updateTreeViewDescription();
     treeDataProvider.setState('no-remote');
     return;
   }
 
-  const storedPath = context.workspaceState.get<string>(ACTIVE_REPO_KEY);
-  const selected = pickInitialRepository(detectedRepositories, storedPath, activeRepository);
-  activeRepository = selected;
-  notificationTrackerRef?.setActiveRepo(selected.rootPath);
+  const selected = RepositorySelection.effective(
+    RepositorySelection.readStored(context.workspaceState),
+    detectedRepositories
+  );
+  const shown = selected.length > 0
+    ? selected
+    : [RepositorySelection.autoPick(
+        detectedRepositories,
+        activeRepository,
+        vscode.window.activeTextEditor?.document.uri
+      )];
 
   if (detectedRepositories.length > 1) {
     log.appendLine(
-      `Multiple repositories detected (${detectedRepositories.length}). Active: ${selected.displayName} (${selected.remote.owner}/${selected.remote.repo})`
+      `Multiple repositories detected (${detectedRepositories.length}). Shown: ${shown.map(r => `${r.displayName} (${r.remote.owner}/${r.remote.repo})`).join(', ')}`
     );
   }
 
-  updateTreeViewDescription();
+  const contexts = await RepositorySelection.buildContexts(shown, {
+    githubToken: await config.getGitHubAuthToken(),
+    getGitLabToken: (host) => config.getGitLabToken(host),
+    gitlabUrl: config.getGitLabUrl(),
+  });
+  if (generation !== initGeneration) {
+    return;
+  }
+  activeRepository = shown[0];
+  repoContexts = contexts;
 
-  try {
-    const result = await ProviderFactory.create(selected, {
-      githubToken: await config.getGitHubAuthToken(),
-      getGitLabToken: (host) => config.getGitLabToken(host),
-      gitlabUrl: config.getGitLabUrl(),
-    });
-
-    currentProvider = result.provider;
-
-    if (result.reason === 'no-token') {
-      const platform = result.remote.platform;
-      log.appendLine(`Detected ${platform} repo (${result.remote.host}/${result.remote.owner}/${result.remote.repo}) but no token configured`);
-      treeDataProvider.setState('no-token', platform);
-    } else {
-      const info = result.provider!.getRepositoryInfo();
+  for (const { repo, state } of repoContexts) {
+    const name = `${repo.remote.host}/${repo.remote.owner}/${repo.remote.repo}`;
+    if (state.kind === 'ready') {
+      const info = state.provider.getRepositoryInfo();
       log.appendLine(`Connected to ${info.platform}: ${info.owner}/${info.repo} (${info.baseUrl})`);
-      treeDataProvider.setState('ready', undefined, result.provider);
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    log.appendLine(`Error: ${msg}`);
-    currentProvider = null;
-    treeDataProvider.setState('no-remote');
-    vscode.window.showErrorMessage(`Git Issues: ${msg}`);
-  }
-}
-
-function pickInitialRepository(
-  repos: DetectedRepository[],
-  storedPath: string | undefined,
-  current: DetectedRepository | null
-): DetectedRepository {
-  // 1. Stored choice from a previous Quick Pick wins.
-  if (storedPath) {
-    const stored = repos.find(d => d.rootPath === storedPath);
-    if (stored) {
-      return stored;
+    } else if (state.kind === 'no-token') {
+      log.appendLine(`Detected ${state.platform} repo (${name}) but no token configured`);
+    } else {
+      log.appendLine(`Error for ${name}: ${state.message}`);
     }
   }
 
-  // 2. If we already have an active repo and it's still in the list, keep it
-  //    so the selection doesn't bounce as new nested repos are discovered.
-  if (current) {
-    const stillThere = repos.find(d => d.rootPath === current.rootPath);
-    if (stillThere) {
-      return stillThere;
-    }
+  const primary = repoContexts[0].state;
+  currentProvider = primary.kind === 'ready' ? primary.provider : null;
+  if (repoContexts.length === 1 && primary.kind === 'error') {
+    vscode.window.showErrorMessage(`Git Issues: ${primary.message}`);
   }
 
-  // 3. Prefer the repo containing the file in the active editor.
-  const activeFile = vscode.window.activeTextEditor?.document.uri;
-  if (activeFile) {
-    const matching = repos
-      .filter(d => RepositoryResolver.contains(d, activeFile))
-      .sort((a, b) => b.rootPath.length - a.rootPath.length); // deepest first
-    if (matching.length > 0) {
-      return matching[0];
-    }
-  }
-
-  // 4. Avoid worktrees as default — they share an origin with the main repo
-  //    and are rarely the user's intended target.
-  const nonWorktree = repos.filter(d => d.isVirtual || !isWorktreePath(d.rootPath));
-  if (nonWorktree.length > 0) {
-    return nonWorktree[0];
-  }
-
-  return repos[0];
-}
-
-function isWorktreePath(p: string): boolean {
-  return p.split(path.sep).includes('worktrees');
+  updateTreeViewDescription();
+  treeDataProvider.setRepoContexts(repoContexts);
 }
 
 function updateTreeViewDescription(): void {
@@ -352,7 +325,9 @@ function updateTreeViewDescription(): void {
     return;
   }
   const parts: string[] = [];
-  if (detectedRepositories.length > 1 && activeRepository) {
+  if (repoContexts.length > 1) {
+    parts.push(`${repoContexts.length} repositories`);
+  } else if (detectedRepositories.length > 1 && activeRepository) {
     parts.push(`${activeRepository.remote.owner}/${activeRepository.remote.repo}`);
   }
   if (currentLabelFilter.length > 0) {

@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { IssueTreeDataProvider } from '../../src/tree/IssueTreeDataProvider';
-import { IssueTreeItem, IssueGroupTreeItem, MessageTreeItem } from '../../src/tree/IssueTreeItem';
+import { IssueTreeItem, IssueGroupTreeItem, MessageTreeItem, RepositoryTreeItem } from '../../src/tree/IssueTreeItem';
+import type { DetectedRepository } from '../../src/git/RepositoryResolver';
+import type { RepoContext } from '../../src/git/RepositorySelection';
 import type { IssueProvider } from '../../src/providers/IssueProvider';
 import type { Issue } from '../../src/types';
 import { IssueCache } from '../../src/cache/IssueCache';
@@ -399,6 +401,113 @@ describe('IssueTreeDataProvider', () => {
 
       tdp.setState('no-remote');
       expect(listener).toHaveBeenCalled();
+    });
+  });
+
+  describe('multiple repositories', () => {
+    function repo(name: string, platform: 'github' | 'gitlab' = 'github'): DetectedRepository {
+      return {
+        rootUri: {} as never,
+        rootPath: `/ws/${name}`,
+        displayName: name,
+        remote: { platform, host: platform === 'github' ? 'github.com' : 'gitlab.example.com', owner: 'acme', repo: name },
+        isVirtual: false,
+      } as DetectedRepository;
+    }
+
+    function ready(name: string, issues: Issue[], login = 'user'): RepoContext {
+      const provider = makeProvider(issues);
+      (provider.getCurrentUser as any).mockResolvedValue({ id: 1, login });
+      return { repo: repo(name), state: { kind: 'ready', provider } };
+    }
+
+    async function load(contexts: RepoContext[]) {
+      tdp.setRepoContexts(contexts);
+      await tdp.refresh();
+    }
+
+    it('groups issues under one node per repo with the visible count', async () => {
+      await load([
+        ready('web', [makeIssue({ number: 1 }), makeIssue({ number: 2 })]),
+        ready('api', [makeIssue({ number: 3 })]),
+      ]);
+      const roots = tdp.getChildren() as RepositoryTreeItem[];
+      expect(roots.map((r) => r.label)).toEqual(['acme/web (2)', 'acme/api (1)']);
+      expect(roots[0].contextValue).toBe('repository-ready');
+
+      const apiIssues = tdp.getChildren(roots[1]) as IssueTreeItem[];
+      expect(apiIssues.map((i) => i.issue.number)).toEqual([3]);
+      expect(apiIssues[0].command?.arguments).toEqual([3, '/ws/api']);
+    });
+
+    it('stays flat with a single repo but keeps the repo key on clicks', async () => {
+      await load([ready('web', [makeIssue({ number: 5 })])]);
+      const roots = tdp.getChildren() as IssueTreeItem[];
+      expect(roots[0]).toBeInstanceOf(IssueTreeItem);
+      expect(roots[0].command?.arguments).toEqual([5, '/ws/web']);
+      expect(tdp.getRepoSnapshots()[0].repoKey).toBe('/ws/web');
+    });
+
+    it('applies the search per repo and updates the counts', async () => {
+      await load([
+        ready('web', [makeIssue({ number: 1, title: 'Login bug' }), makeIssue({ number: 2, title: 'Footer' })]),
+        ready('api', [makeIssue({ number: 3, title: 'Login timeout' })]),
+      ]);
+      tdp.setSearchQuery('login');
+      const roots = tdp.getChildren() as RepositoryTreeItem[];
+      expect(roots.map((r) => r.label)).toEqual(['acme/web (1)', 'acme/api (1)']);
+    });
+
+    it('matches "assigned to me" against each repo\'s own login', async () => {
+      await load([
+        ready('web', [makeIssue({ number: 1, assignees: [{ id: 1, login: 'alice' }] })], 'alice'),
+        ready('api', [
+          makeIssue({ number: 2, assignees: [{ id: 1, login: 'alice' }] }),
+          makeIssue({ number: 3, assignees: [{ id: 2, login: 'bob' }] }),
+        ], 'bob'),
+      ]);
+      tdp.setUserScope('assigned');
+      const roots = tdp.getChildren() as RepositoryTreeItem[];
+      expect(roots.map((r) => r.label)).toEqual(['acme/web (1)', 'acme/api (1)']);
+      expect((tdp.getChildren(roots[1]) as IssueTreeItem[])[0].issue.number).toBe(3);
+    });
+
+    it('nests open/closed groups under each repo when the state filter is all', async () => {
+      tdp.setFilter({ state: 'all' });
+      await load([
+        ready('web', [makeIssue({ number: 1 }), makeIssue({ number: 2, state: 'closed' })]),
+        ready('api', [makeIssue({ number: 3 })]),
+      ]);
+      const roots = tdp.getChildren() as RepositoryTreeItem[];
+      const groups = tdp.getChildren(roots[0]) as IssueGroupTreeItem[];
+      expect(groups.map((g) => g.label)).toEqual(['Open (1)', 'Closed (1)']);
+      const closed = tdp.getChildren(groups[1]) as IssueTreeItem[];
+      expect(closed.map((i) => i.issue.number)).toEqual([2]);
+    });
+
+    it('shows a missing token only under the affected repo', async () => {
+      const gitlab: RepoContext = {
+        repo: repo('shop', 'gitlab'),
+        state: { kind: 'no-token', platform: 'gitlab', host: 'gitlab.example.com' },
+      };
+      await load([ready('web', [makeIssue({ number: 1 })]), gitlab]);
+      const roots = tdp.getChildren() as RepositoryTreeItem[];
+      expect(roots.map((r) => r.label)).toEqual(['acme/web (1)', 'acme/shop']);
+      expect(roots[1].contextValue).toBe('repository');
+
+      const hint = tdp.getChildren(roots[1])[0] as MessageTreeItem;
+      expect(hint.label).toBe('Click to configure GitLab token');
+      expect(hint.command?.arguments).toEqual(['gitlab.example.com']);
+      expect(tdp.getChildren(roots[0])).toHaveLength(1);
+    });
+
+    it('keeps a load error at its repo node', async () => {
+      const broken = ready('api', []);
+      ((broken.state as any).provider.listIssues as any).mockRejectedValue(new Error('500'));
+      await load([ready('web', [makeIssue({ number: 1 })]), broken]);
+      const roots = tdp.getChildren() as RepositoryTreeItem[];
+      expect(roots.map((r) => r.label)).toEqual(['acme/web (1)', 'acme/api']);
+      expect((tdp.getChildren(roots[1])[0] as MessageTreeItem).label).toBe('Error: 500');
     });
   });
 });

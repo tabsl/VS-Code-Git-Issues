@@ -23,7 +23,7 @@ Manage GitHub and GitLab issues directly from VS Code. Browse, create, edit, and
 - **Start a Claude Session** — Hand an issue to Claude with one click. Uses the Claude Code extension when it is installed (VS Code and Cursor alike), otherwise runs the `claude` CLI in a terminal at the repo root
 - **Assignment Indicator** — Issues assigned to you are marked with `@you` in the sidebar; a one-click toggle in the title bar limits the list to your issues
 - **File Upload (GitLab)** — Drag-and-drop, paste images from the clipboard, or pick a file when commenting on or editing GitLab issues
-- **Multi-Repo Workspaces** — Detects all git repos in your workspace, including nested ones (monorepos with sibling repos like `app/`, `api/`, `site/`). The active repo follows your editor; pin a specific one via `Git Issues: Select Repository`.
+- **Multi-Repo Workspaces** — Detects all git repos in your workspace, including nested ones (monorepos with sibling repos like `app/`, `api/`, `site/`). The active repo follows your editor; pick one or more repos via `Git Issues: Select Repositories` to show their issues side by side, grouped per repo.
 - **Multiple GitLab Instances** — Configure separate Personal Access Tokens per host (e.g. `gitlab.com` and your self-hosted `gitlab.example.com`). The right token is picked automatically based on each repo's git remote.
 - **Offline Cache** — The sidebar paints the last known issues instantly on startup or repo switch and refreshes in the background; cached issues stay visible when a refresh fails
 - **Status Bar Counter** — Shows open issues (and how many are assigned to you) for the active repo; click to focus the sidebar
@@ -62,7 +62,7 @@ When you sign in via the VS Code GitHub account, the extension reuses your exist
 | `gitIssues.gitlab.url` | `https://gitlab.com` | GitLab instance URL (for self-hosted) |
 | `gitIssues.defaultState` | `open` | Default issue filter: `open`, `closed`, or `all` |
 | `gitIssues.defaultSort` | `created` | Sort order: `created`, `updated`, or `comments` |
-| `gitIssues.maxIssues` | `100` | Maximum number of issues loaded into the sidebar (fetched in pages of 100) |
+| `gitIssues.maxIssues` | `100` | Maximum number of issues loaded into the sidebar per repository (fetched in pages of 100) |
 | `gitIssues.autoRefreshInterval` | `0` | Auto-refresh in seconds (0 = disabled) |
 | `gitIssues.offlineCache.enabled` | `true` | Cache the issue list locally so the sidebar shows the last known issues instantly, then refreshes in the background |
 | `gitIssues.autoLinkBranchToIssue` | `true` | Prompt to open the matching issue when switching to a branch that contains an issue number |
@@ -85,7 +85,7 @@ All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+
 - **Git Issues: Toggle My Issues** — One-click toggle in the title bar that limits the list to issues assigned to you (icon switches to filled when active)
 - **Git Issues: Filter by Labels** — Multi-select Quick Pick over all repository labels, on GitLab including inherited group labels (server-side filter; issues must carry all selected labels). Available as a tag icon in the view title bar; the active labels are shown next to the view title
 - **Git Issues: Filter by Milestone** — Pick a single milestone (with a "Clear" entry) to scope the list (server-side filter). Available in the view's "…" menu
-- **Git Issues: Select Repository** — In multi-repo workspaces, pick which repo's issues to show (also available as a 📁 icon in the view title bar when more than one repo is detected). Once picked, the choice is persisted per workspace and disables auto-follow.
+- **Git Issues: Select Repositories** — In multi-repo workspaces, tick which repos' issues to show (also available as a 📁 icon in the view title bar when more than one repo is detected). With two or more repos ticked, the sidebar groups issues under one node per repo. The choice is persisted per workspace and disables auto-follow; confirming an empty selection turns auto-follow back on.
 - **Git Issues: Create Branch from Issue** — Create and switch to a new branch named after an issue (right-click an issue in the sidebar)
 - **Git Issues: Open Issue** — Open an issue's detail panel by number (the sidebar uses this when you click an issue)
 - **Git Issues: Open Issue to the Side** — Open the detail panel next to your code instead of over it
@@ -101,11 +101,11 @@ All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+
 
 If your workspace contains multiple git repositories (e.g. a parent folder with `app/`, `api/`, `site/` siblings, each with their own `origin`), the extension picks the active repo automatically:
 
-1. The repo you previously pinned via `Git Issues: Select Repository` (persisted per workspace)
+1. The repos you previously picked via `Git Issues: Select Repositories` (persisted per workspace)
 2. The repo containing the file in the active editor (auto-follows when you switch editors)
 3. A non-worktree repo as a sane default
 
-The Quick Pick (`Git Issues: Select Repository`, or the repo icon in the view's title bar) lets you override this at any time.
+The Quick Pick (`Git Issues: Select Repositories`, or the repo icon in the view's title bar) lets you override this at any time. Tick several repos to see their issues at once: each repo gets its own node with an issue count, and a `+` on the node creates an issue in that repo. Filters, search and "my issues" apply to all shown repos; labels and milestones are matched by name. Clicking an issue, opening it in the browser, creating a branch or starting a Claude session always uses the repo the issue is listed under. Confirm the Quick Pick with nothing ticked to go back to following the active editor.
 
 ## Remote Repositories
 

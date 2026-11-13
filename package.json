@@ -155,7 +155,7 @@
       },
       {
         "command": "gitIssues.selectRepository",
-        "title": "Select Repository",
+        "title": "Select Repositories",
         "icon": "$(repo)",
         "category": "Git Issues"
       },
@@ -230,6 +230,11 @@
       ],
       "view/item/context": [
         {
+          "command": "gitIssues.createIssue",
+          "when": "view == gitIssues && viewItem == repository-ready",
+          "group": "inline@1"
+        },
+        {
           "command": "gitIssues.openIssueBeside",
           "when": "view == gitIssues && (viewItem == issue-open || viewItem == issue-closed)",
           "group": "inline@1"
@@ -295,7 +300,7 @@
           "type": "number",
           "default": 100,
           "minimum": 1,
-          "description": "Maximum number of issues loaded into the sidebar. Larger values need more API requests (100 issues per request)."
+          "description": "Maximum number of issues loaded into the sidebar per repository. Larger values need more API requests (100 issues per request)."
         },
         "gitIssues.offlineCache.enabled": {
           "type": "boolean",

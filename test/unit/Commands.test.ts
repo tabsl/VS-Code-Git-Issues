@@ -5,6 +5,13 @@ import type { Configuration } from '../../src/config/Configuration';
 import type { IssueTreeDataProvider } from '../../src/tree/IssueTreeDataProvider';
 import type { IssueProvider } from '../../src/providers/IssueProvider';
 import { __resetConfigStores } from './__mocks__/vscode';
+import type { RepoContext } from '../../src/git/RepositorySelection';
+import type { DetectedRepository } from '../../src/git/RepositoryResolver';
+
+const showPanel = vi.fn();
+vi.mock('../../src/webview/IssueWebviewPanel', () => ({
+  IssueWebviewPanel: { show: (...args: unknown[]) => showPanel(...args) },
+}));
 
 function createMockContext(): vscode.ExtensionContext {
   return {
@@ -295,6 +302,80 @@ describe('registerCommands', () => {
     it('does nothing without an issue', async () => {
       await registeredCommands.get('gitIssues.startClaudeSession')!(undefined);
       expect(vscode.window.createTerminal).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('with several repositories', () => {
+    let providerA: IssueProvider;
+    let providerB: IssueProvider;
+    let contexts: RepoContext[];
+
+    function repo(name: string): DetectedRepository {
+      return {
+        rootUri: {} as never,
+        rootPath: `/ws/${name}`,
+        displayName: name,
+        remote: { platform: 'github', host: 'github.com', owner: 'acme', repo: name },
+        isVirtual: false,
+      } as DetectedRepository;
+    }
+
+    beforeEach(() => {
+      providerA = createMockProvider();
+      providerB = createMockProvider();
+      (providerA.getRepositoryInfo as any).mockReturnValue({ owner: 'acme', repo: 'web', platform: 'github', baseUrl: '' });
+      (providerB.getRepositoryInfo as any).mockReturnValue({ owner: 'acme', repo: 'api', platform: 'github', baseUrl: '' });
+      (providerB.getIssueUrl as any).mockReturnValue('https://github.com/acme/api/issues/5');
+      contexts = [
+        { repo: repo('web'), state: { kind: 'ready', provider: providerA } },
+        { repo: repo('api'), state: { kind: 'ready', provider: providerB } },
+      ];
+      registerCommands(
+        ctx, config, tdp as any, () => providerA, () => contexts[0].repo, reinitializeProvider, () => contexts
+      );
+    });
+
+    it('opens an issue with the provider of the repo it was listed under', async () => {
+      await registeredCommands.get('gitIssues.openIssue')!(5, '/ws/api');
+      expect(showPanel).toHaveBeenCalledWith(expect.anything(), providerB, 5, contexts[1].repo);
+    });
+
+    it('refuses an unknown repo instead of falling back to another one', async () => {
+      await registeredCommands.get('gitIssues.openIssue')!(5, '/ws/gone');
+      expect(showPanel).not.toHaveBeenCalled();
+      expect(vscode.window.showErrorMessage).toHaveBeenCalledWith('Git Issues: Repository not loaded');
+    });
+
+    it('opens the browser URL of the item\'s repo', () => {
+      registeredCommands.get('gitIssues.openInBrowser')!({ issue: { number: 5 }, repoKey: '/ws/api' });
+      expect(providerB.getIssueUrl).toHaveBeenCalledWith(5);
+      expect(providerA.getIssueUrl).not.toHaveBeenCalled();
+    });
+
+    it('creates an issue in the repo of the clicked node without asking', async () => {
+      (vscode.window.showInputBox as any).mockResolvedValueOnce('Title').mockResolvedValueOnce('');
+      await registeredCommands.get('gitIssues.createIssue')!({ repoKey: '/ws/api' });
+      expect(vscode.window.showQuickPick).not.toHaveBeenCalled();
+      expect(providerB.createIssue).toHaveBeenCalled();
+      expect(providerA.createIssue).not.toHaveBeenCalled();
+    });
+
+    it('asks for the target repo when creating from the title bar', async () => {
+      (vscode.window.showQuickPick as any).mockImplementationOnce(async (items: any[]) => items[1]);
+      (vscode.window.showInputBox as any).mockResolvedValueOnce('Title').mockResolvedValueOnce('');
+      await registeredCommands.get('gitIssues.createIssue')!();
+      const offered = (vscode.window.showQuickPick as any).mock.calls[0][0].map((i: any) => i.label);
+      expect(offered).toEqual(['acme/web', 'acme/api']);
+      expect(providerB.createIssue).toHaveBeenCalled();
+    });
+
+    it('offers the labels of all repos once each', async () => {
+      (providerA.listLabels as any).mockResolvedValue([{ name: 'bug', color: 'f00' }, { name: 'ui', color: '0f0' }]);
+      (providerB.listLabels as any).mockResolvedValue([{ name: 'bug', color: 'f00' }, { name: 'api', color: '00f' }]);
+      (vscode.window.showQuickPick as any).mockResolvedValueOnce(undefined);
+      await registeredCommands.get('gitIssues.filterByLabels')!();
+      const offered = (vscode.window.showQuickPick as any).mock.calls[0][0].map((i: any) => i.label);
+      expect(offered).toEqual(['api', 'bug', 'ui']);
     });
   });
 });

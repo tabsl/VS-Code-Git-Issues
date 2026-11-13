@@ -138,6 +138,39 @@ describe('GitHubProvider', () => {
       }));
     });
 
+    it('resolves a milestone title to this repo\'s milestone number', async () => {
+      mock.issues.listMilestones.mockResolvedValueOnce({
+        data: [{ number: 3, title: 'Release 1' }, { number: 7, title: 'Release 3' }],
+      });
+      mock.issues.listForRepo.mockResolvedValue({ data: [] });
+
+      await provider.listIssues({ milestone: 'Release 3' });
+
+      expect(mock.issues.listForRepo).toHaveBeenCalledWith(expect.objectContaining({ milestone: '7' }));
+    });
+
+    it('finds a milestone title on a later page of milestones', async () => {
+      const firstPage = Array.from({ length: 100 }, (_, i) => ({ number: i + 1, title: `M${i + 1}` }));
+      mock.issues.listMilestones
+        .mockResolvedValueOnce({ data: firstPage })
+        .mockResolvedValueOnce({ data: [{ number: 150, title: 'Release 3' }] });
+      mock.issues.listForRepo.mockResolvedValue({ data: [] });
+
+      await provider.listIssues({ milestone: 'Release 3' });
+
+      expect(mock.issues.listMilestones).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
+      expect(mock.issues.listForRepo).toHaveBeenCalledWith(expect.objectContaining({ milestone: '150' }));
+    });
+
+    it('returns no issues when the milestone title does not exist in this repo', async () => {
+      mock.issues.listMilestones.mockResolvedValueOnce({ data: [{ number: 3, title: 'Release 1' }] });
+
+      const issues = await provider.listIssues({ milestone: 'Release 3' });
+
+      expect(issues).toEqual([]);
+      expect(mock.issues.listForRepo).not.toHaveBeenCalled();
+    });
+
     it('pages through results until the limit, skipping pull requests', async () => {
       const paginate = getPaginateMock();
       const firstPage = [

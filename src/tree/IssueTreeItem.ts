@@ -1,8 +1,13 @@
 import * as vscode from 'vscode';
 import type { Issue } from '../types';
+import type { DetectedRepository } from '../git/RepositoryResolver';
 
 export class IssueTreeItem extends vscode.TreeItem {
-  constructor(public readonly issue: Issue, currentUserLogin?: string) {
+  constructor(
+    public readonly issue: Issue,
+    currentUserLogin?: string,
+    public readonly repoKey: string | null = null
+  ) {
     super(`#${issue.number} ${issue.title}`, vscode.TreeItemCollapsibleState.None);
 
     const isAssignedToMe = currentUserLogin
@@ -20,7 +25,7 @@ export class IssueTreeItem extends vscode.TreeItem {
     this.command = {
       command: 'gitIssues.openIssue',
       title: 'Open Issue',
-      arguments: [issue.number],
+      arguments: repoKey ? [issue.number, repoKey] : [issue.number],
     };
   }
 
@@ -50,7 +55,8 @@ export class IssueTreeItem extends vscode.TreeItem {
 export class IssueGroupTreeItem extends vscode.TreeItem {
   constructor(
     public readonly state: 'open' | 'closed',
-    count: number
+    count: number,
+    public readonly repoKey: string | null = null
   ) {
     super(
       `${state === 'open' ? 'Open' : 'Closed'} (${count})`,
@@ -62,6 +68,29 @@ export class IssueGroupTreeItem extends vscode.TreeItem {
     this.iconPath = new vscode.ThemeIcon(
       state === 'open' ? 'issue-opened' : 'issue-closed'
     );
+  }
+}
+
+export class RepositoryTreeItem extends vscode.TreeItem {
+  constructor(
+    public readonly repo: DetectedRepository,
+    count: number | null,
+    ready: boolean
+  ) {
+    const name = `${repo.remote.owner}/${repo.remote.repo}`;
+    super(
+      count === null ? name : `${name} (${count})`,
+      vscode.TreeItemCollapsibleState.Expanded
+    );
+    this.id = `repo:${repo.rootPath}`;
+    this.description = repo.displayName;
+    this.tooltip = `${repo.remote.platform} · ${repo.remote.host}/${name}\n${repo.rootPath}`;
+    this.iconPath = new vscode.ThemeIcon('repo');
+    this.contextValue = ready ? 'repository-ready' : 'repository';
+  }
+
+  get repoKey(): string {
+    return this.repo.rootPath;
   }
 }
 

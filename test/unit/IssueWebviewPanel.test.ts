@@ -105,6 +105,56 @@ describe('IssueWebviewPanel', () => {
     expect(mockPanel.reveal).toHaveBeenCalled();
   });
 
+  it('drops a slow load for an earlier issue once another repo\'s issue is opened', async () => {
+    let resolveA: (value: unknown) => void = () => undefined;
+    const providerA = createMockProvider();
+    (providerA.getIssue as any).mockReturnValue(new Promise((r) => { resolveA = r; }));
+    (providerA.getRepositoryInfo as any).mockReturnValue({ owner: 'acme', repo: 'web', platform: 'github', baseUrl: '' });
+    const providerB = createMockProvider();
+    (providerB.getRepositoryInfo as any).mockReturnValue({ owner: 'acme', repo: 'api', platform: 'github', baseUrl: '' });
+    (providerB.getIssue as any).mockResolvedValue({
+      number: 2, title: 'From B', state: 'open', body: '',
+      author: { id: 1, login: 'user' }, createdAt: new Date(), updatedAt: new Date(),
+      labels: [], assignees: [], commentCount: 0, comments: [],
+    });
+
+    IssueWebviewPanel.show(vscode.Uri.parse('file:///ext'), providerA, 1);
+    IssueWebviewPanel.show(vscode.Uri.parse('file:///ext'), providerB, 2);
+    await new Promise(r => setTimeout(r, 20));
+    resolveA({
+      number: 1, title: 'From A', state: 'open', body: '',
+      author: { id: 1, login: 'user' }, createdAt: new Date(), updatedAt: new Date(),
+      labels: [], assignees: [], commentCount: 0, comments: [],
+    });
+    await new Promise(r => setTimeout(r, 20));
+
+    const loaded = mockPanel.webview.postMessage.mock.calls
+      .map((c: any[]) => c[0])
+      .filter((m: any) => m.type === 'issueLoaded');
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0].issue.title).toBe('From B');
+    expect(loaded[0].repositoryInfo.repo).toBe('api');
+    expect(mockPanel.title).toBe('Issue #2: From B');
+  });
+
+  it('does not post a comment to the panel after it switched to another repo\'s issue', async () => {
+    let resolveComment: (value: unknown) => void = () => undefined;
+    (provider.addComment as any).mockReturnValue(new Promise((r) => { resolveComment = r; }));
+    const providerB = createMockProvider();
+
+    IssueWebviewPanel.show(vscode.Uri.parse('file:///ext'), provider, 1);
+    const pending = messageHandler!({ type: 'addComment', body: 'late' });
+    IssueWebviewPanel.show(vscode.Uri.parse('file:///ext'), providerB, 2);
+    resolveComment({ id: 100, body: 'late', author: { id: 1, login: 'u' }, createdAt: new Date(), updatedAt: new Date() });
+    await pending;
+
+    const commentMessages = mockPanel.webview.postMessage.mock.calls
+      .map((c: any[]) => c[0])
+      .filter((m: any) => m.type === 'commentAdded');
+    expect(commentMessages).toHaveLength(0);
+    expect(provider.addComment).toHaveBeenCalledWith(1, 'late');
+  });
+
   it('handles addComment message', async () => {
     (provider.addComment as any).mockResolvedValue({
       id: 100, body: 'test', author: { id: 1, login: 'u' },

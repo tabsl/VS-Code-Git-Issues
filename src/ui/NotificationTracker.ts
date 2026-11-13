@@ -1,12 +1,11 @@
 import * as vscode from 'vscode';
-import type { IssueTreeDataProvider } from '../tree/IssueTreeDataProvider';
+import type { IssueTreeDataProvider, RepoSnapshot } from '../tree/IssueTreeDataProvider';
 import type { Issue } from '../types';
 
 const LAST_SEEN_KEY_PREFIX = 'gitIssues.lastSeen:';
 
 export class NotificationTracker implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
-  private repoKey: string | null = null;
   private enabled = true;
   // Snapshot of issues from the last `mark all as read` action, used to keep
   // the badge stable until the user explicitly opens the sidebar again.
@@ -47,11 +46,6 @@ export class NotificationTracker implements vscode.Disposable {
     this.applyEnabledFromConfig();
   }
 
-  setActiveRepo(repoKey: string | null): void {
-    this.repoKey = repoKey;
-    this.refresh();
-  }
-
   dispose(): void {
     for (const d of this.disposables) {
       d.dispose();
@@ -69,64 +63,61 @@ export class NotificationTracker implements vscode.Disposable {
     }
   }
 
-  private getLastSeen(): number {
-    if (!this.repoKey) {
-      return 0;
-    }
-    return this.context.globalState.get<number>(this.lastSeenKey(), 0);
+  private trackedSnapshots(): Array<RepoSnapshot & { repoKey: string }> {
+    return this.treeDataProvider
+      .getRepoSnapshots()
+      .filter((s): s is RepoSnapshot & { repoKey: string } => s.repoKey !== null);
   }
 
-  private async setLastSeen(value: number): Promise<void> {
-    if (!this.repoKey) {
-      return;
-    }
-    await this.context.globalState.update(this.lastSeenKey(), value);
+  private getLastSeen(repoKey: string): number {
+    return this.context.globalState.get<number>(`${LAST_SEEN_KEY_PREFIX}${repoKey}`, 0);
   }
 
-  private lastSeenKey(): string {
-    return `${LAST_SEEN_KEY_PREFIX}${this.repoKey}`;
+  private async setLastSeen(repoKey: string, value: number): Promise<void> {
+    await this.context.globalState.update(`${LAST_SEEN_KEY_PREFIX}${repoKey}`, value);
   }
 
   private markAllRead(): void {
-    if (!this.repoKey) {
-      return;
+    for (const snapshot of this.trackedSnapshots()) {
+      void this.setLastSeen(snapshot.repoKey, newestUpdate(snapshot.issues));
     }
-    const issues = this.treeDataProvider.getIssues();
-    const newest = newestUpdate(issues);
-    void this.setLastSeen(newest);
     this.treeView.badge = undefined;
   }
 
   private refresh(): void {
-    if (!this.enabled || !this.repoKey) {
-      this.treeView.badge = undefined;
-      return;
-    }
-    const me = this.treeDataProvider.getCurrentUserLogin();
-    const issues = this.treeDataProvider.getIssues();
-    if (issues.length === 0) {
+    const snapshots = this.trackedSnapshots();
+    if (!this.enabled || snapshots.length === 0) {
       this.treeView.badge = undefined;
       return;
     }
 
-    // Avoid badging on first ever load — without a baseline, every issue
-    // looks "new". Seed the timestamp instead.
-    const lastSeen = this.getLastSeen();
-    if (lastSeen === 0) {
-      void this.setLastSeen(newestUpdate(issues));
-      this.treeView.badge = undefined;
-      return;
-    }
+    const unread: Array<{ issue: Issue; me: string | undefined; snapshot: RepoSnapshot }> = [];
+    for (const snapshot of snapshots) {
+      const { repoKey, issues, currentUserLogin: me } = snapshot;
+      if (issues.length === 0) {
+        continue;
+      }
 
-    const candidates = relevantToUser(issues, me);
-    const unread = candidates.filter((i) => i.updatedAt.getTime() > lastSeen);
+      // Avoid badging on first ever load — without a baseline, every issue
+      // looks "new". Seed the timestamp instead.
+      const lastSeen = this.getLastSeen(repoKey);
+      if (lastSeen === 0) {
+        void this.setLastSeen(repoKey, newestUpdate(issues));
+        continue;
+      }
 
-    // If the view is already focused, mark seen immediately rather than
-    // showing a badge the user is staring straight at.
-    if (this.treeView.visible) {
-      void this.setLastSeen(newestUpdate(issues));
-      this.treeView.badge = undefined;
-      return;
+      // If the view is already focused, mark seen immediately rather than
+      // showing a badge the user is staring straight at.
+      if (this.treeView.visible) {
+        void this.setLastSeen(repoKey, newestUpdate(issues));
+        continue;
+      }
+
+      for (const issue of relevantToUser(issues, me)) {
+        if (issue.updatedAt.getTime() > lastSeen) {
+          unread.push({ issue, me, snapshot });
+        }
+      }
     }
 
     if (unread.length === 0) {
@@ -135,7 +126,7 @@ export class NotificationTracker implements vscode.Disposable {
     }
     this.treeView.badge = {
       value: unread.length,
-      tooltip: tooltipFor(unread, me),
+      tooltip: tooltipFor(unread, snapshots.length > 1),
     };
     this.wasFocusedSinceLastFire = false;
   }
@@ -163,11 +154,16 @@ function relevantToUser(issues: readonly Issue[], me: string | undefined): Issue
   );
 }
 
-function tooltipFor(unread: Issue[], me: string | undefined): string {
+function tooltipFor(
+  unread: Array<{ issue: Issue; me: string | undefined; snapshot: RepoSnapshot }>,
+  multipleRepos: boolean
+): string {
   if (unread.length === 1) {
-    const i = unread[0];
+    const { issue: i, me, snapshot } = unread[0];
     const role = me && i.author.login === me ? 'authored' : 'assigned';
-    return `Git Issues: 1 update on an issue ${role} by you (#${i.number} ${i.title})`;
+    const remote = snapshot.repo?.remote;
+    const ref = multipleRepos && remote ? `${remote.owner}/${remote.repo}#${i.number}` : `#${i.number}`;
+    return `Git Issues: 1 update on an issue ${role} by you (${ref} ${i.title})`;
   }
   return `Git Issues: ${unread.length} updates on issues you author or are assigned to`;
 }

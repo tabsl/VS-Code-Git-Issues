@@ -2,14 +2,24 @@ import * as vscode from 'vscode';
 import type { Configuration } from '../config/Configuration';
 import type { IssueProvider } from '../providers/IssueProvider';
 import type { IssueTreeDataProvider } from '../tree/IssueTreeDataProvider';
-import type { IssueTreeItem } from '../tree/IssueTreeItem';
+import type { IssueTreeItem, RepositoryTreeItem } from '../tree/IssueTreeItem';
 import type { DetectedRepository } from '../git/RepositoryResolver';
+import type { RepoContext } from '../git/RepositorySelection';
 import { RepositoryResolver } from '../git/RepositoryResolver';
 import { GitOperations } from '../git/GitOperations';
 import { setSearchDescription, setLabelFilterDescription, setMilestoneFilterDescription } from '../extension';
 import { loadIssueTemplates, type IssueTemplate } from '../templates/IssueTemplates';
 import { extractIssueNumberFromBranch } from '../git/BranchIssueLinker';
 import { buildIssuePrompt, resolvePromptLanguage, startClaudeSession } from '../ai/ClaudeSession';
+import {
+  collectLabels,
+  collectMilestones,
+  pickRepoTarget,
+  readyRepoTargets,
+  resolveIssueTarget,
+  type RepoTarget,
+} from './repoTargets';
+import { selectRepositories } from './selectRepositories';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -17,8 +27,11 @@ export function registerCommands(
   treeDataProvider: IssueTreeDataProvider,
   getProvider: () => IssueProvider | null,
   getActiveRepository: () => DetectedRepository | null,
-  reinitializeProvider: (folderPath?: string) => Promise<void>
+  reinitializeProvider: () => Promise<void>,
+  getRepoContexts: () => RepoContext[] = () => []
 ): void {
+  const targetSources = { getProvider, getActiveRepository, getRepoContexts };
+
   // Refresh
   context.subscriptions.push(
     vscode.commands.registerCommand('gitIssues.refresh', () => {
@@ -63,15 +76,12 @@ export function registerCommands(
 
   // Open Issue in Webview
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitIssues.openIssue', async (issueNumber: number) => {
-      const provider = getProvider();
-      if (!provider) {
-        vscode.window.showErrorMessage('Git Issues: No provider available');
-        return;
-      }
+    vscode.commands.registerCommand('gitIssues.openIssue', async (issueNumber: number, repoKey?: string) => {
+      const target = resolveIssueTarget(targetSources, repoKey);
+      if (!target) { return; }
 
       const { IssueWebviewPanel } = await import('../webview/IssueWebviewPanel');
-      IssueWebviewPanel.show(context.extensionUri, provider, issueNumber, getActiveRepository());
+      IssueWebviewPanel.show(context.extensionUri, target.provider, issueNumber, target.repository);
     })
   );
 
@@ -79,23 +89,23 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'gitIssues.openIssueBeside',
-      async (itemOrNumber: IssueTreeItem | number | undefined) => {
-        const provider = getProvider();
-        if (!provider) {
-          vscode.window.showErrorMessage('Git Issues: No provider available');
-          return;
-        }
+      async (itemOrNumber: IssueTreeItem | number | undefined, repoKey?: string) => {
         const issueNumber = typeof itemOrNumber === 'number'
           ? itemOrNumber
           : itemOrNumber?.issue?.number;
         if (!issueNumber) { return; }
+        const target = resolveIssueTarget(
+          targetSources,
+          typeof itemOrNumber === 'number' ? repoKey : itemOrNumber?.repoKey
+        );
+        if (!target) { return; }
 
         const { IssueWebviewPanel } = await import('../webview/IssueWebviewPanel');
         IssueWebviewPanel.show(
           context.extensionUri,
-          provider,
+          target.provider,
           issueNumber,
-          getActiveRepository(),
+          target.repository,
           { location: 'beside' }
         );
       }
@@ -104,14 +114,13 @@ export function registerCommands(
 
   // Create Issue
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitIssues.createIssue', async () => {
-      const provider = getProvider();
-      if (!provider) {
-        vscode.window.showErrorMessage('Git Issues: No provider available');
-        return;
-      }
+    vscode.commands.registerCommand('gitIssues.createIssue', async (repoItem?: RepositoryTreeItem) => {
+      const target = repoItem?.repoKey
+        ? resolveIssueTarget(targetSources, repoItem.repoKey)
+        : await pickRepoTarget(targetSources, 'Create the issue in which repository?');
+      if (!target) { return; }
+      const { provider, repository: repo } = target;
 
-      const repo = getActiveRepository();
       let template: IssueTemplate | null = null;
       if (repo && !repo.isVirtual) {
         const templates = await loadIssueTemplates(repo.rootPath, provider.platform);
@@ -238,12 +247,12 @@ export function registerCommands(
   // Filter by labels (multi-select)
   context.subscriptions.push(
     vscode.commands.registerCommand('gitIssues.filterByLabels', async () => {
-      const provider = getProvider();
-      if (!provider) {
+      const targets = readyRepoTargets(targetSources);
+      if (targets.length === 0) {
         vscode.window.showErrorMessage('Git Issues: No provider available');
         return;
       }
-      const labels = await provider.listLabels().catch(() => []);
+      const labels = await collectLabels(targets);
       if (labels.length === 0) {
         vscode.window.showInformationMessage('Git Issues: No labels found in this repository');
         return;
@@ -275,12 +284,12 @@ export function registerCommands(
   // Filter by milestone (single-select)
   context.subscriptions.push(
     vscode.commands.registerCommand('gitIssues.filterByMilestone', async () => {
-      const provider = getProvider();
-      if (!provider) {
+      const targets = readyRepoTargets(targetSources);
+      if (targets.length === 0) {
         vscode.window.showErrorMessage('Git Issues: No provider available');
         return;
       }
-      const milestones = await provider.listMilestones().catch(() => []);
+      const milestones = await collectMilestones(targets);
       if (milestones.length === 0) {
         vscode.window.showInformationMessage('Git Issues: No milestones found in this repository');
         return;
@@ -290,11 +299,14 @@ export function registerCommands(
       type Item = vscode.QuickPickItem & { milestone?: string };
       const items: Item[] = [
         { label: '$(close) Clear milestone filter', milestone: undefined, picked: !current },
-        ...milestones.map<Item>((m) => ({
+        ...milestones.map<Item>(({ milestone: m, repoCount }) => ({
           label: m.title,
-          description: m.state === 'closed'
-            ? 'closed'
-            : (m.dueOn ? `due ${m.dueOn.toLocaleDateString()}` : 'open'),
+          description: [
+            m.state === 'closed'
+              ? 'closed'
+              : (m.dueOn ? `due ${m.dueOn.toLocaleDateString()}` : 'open'),
+            repoCount > 1 ? `in ${repoCount} repos` : '',
+          ].filter(Boolean).join(' · '),
           milestone: m.title,
           picked: current === m.title,
         })),
@@ -341,9 +353,10 @@ export function registerCommands(
   // Open in Browser
   context.subscriptions.push(
     vscode.commands.registerCommand('gitIssues.openInBrowser', (item: IssueTreeItem) => {
-      const provider = getProvider();
-      if (!provider || !item?.issue) { return; }
-      const url = provider.getIssueUrl(item.issue.number);
+      if (!item?.issue) { return; }
+      const target = resolveIssueTarget(targetSources, item.repoKey);
+      if (!target) { return; }
+      const url = target.provider.getIssueUrl(item.issue.number);
       vscode.env.openExternal(vscode.Uri.parse(url));
     })
   );
@@ -353,7 +366,9 @@ export function registerCommands(
     vscode.commands.registerCommand('gitIssues.createBranchFromIssue', async (item: IssueTreeItem) => {
       if (!item?.issue) { return; }
 
-      const repo = getActiveRepository();
+      const target = resolveIssueTarget(targetSources, item.repoKey);
+      if (!target) { return; }
+      const repo = target.repository;
       const folderPath = RepositoryResolver.localCheckout(repo);
       if (!folderPath) {
         vscode.window.showErrorMessage(
@@ -388,10 +403,11 @@ export function registerCommands(
   // extension if it is installed, otherwise runs the configured CLI in a terminal.
   context.subscriptions.push(
     vscode.commands.registerCommand('gitIssues.startClaudeSession', async (item: IssueTreeItem) => {
-      const provider = getProvider();
-      if (!provider || !item?.issue) { return; }
+      if (!item?.issue) { return; }
+      const target = resolveIssueTarget(targetSources, item.repoKey);
+      if (!target) { return; }
+      const { provider, repository: repo } = target;
 
-      const repo = getActiveRepository();
       if (repo?.isVirtual) {
         vscode.window.showErrorMessage(
           'Git Issues: Cannot start a Claude session — this repository is opened as a Remote Repository and has no local checkout.'
@@ -426,12 +442,16 @@ export function registerCommands(
   // (#42 / Closes #42 / Refs #42) into the SCM input box of the active repo.
   context.subscriptions.push(
     vscode.commands.registerCommand('gitIssues.referenceInCommit', async () => {
-      const provider = getProvider();
-      if (!provider) {
-        vscode.window.showErrorMessage('Git Issues: No provider available');
-        return;
-      }
-      const repo = getActiveRepository();
+      const activeFile = vscode.window.activeTextEditor?.document.uri;
+      const fromActiveFile: RepoTarget | undefined = activeFile
+        ? readyRepoTargets(targetSources)
+          .filter((t) => t.repository && RepositoryResolver.contains(t.repository, activeFile))
+          .sort((a, b) => b.repository!.rootPath.length - a.repository!.rootPath.length)[0]
+        : undefined;
+      const target = fromActiveFile
+        ?? await pickRepoTarget(targetSources, 'Reference an issue from which repository?');
+      if (!target) { return; }
+      const { provider, repository: repo } = target;
       if (!repo) {
         vscode.window.showErrorMessage('Git Issues: No active repository');
         return;
@@ -531,34 +551,11 @@ export function registerCommands(
     })
   );
 
-  // Select Repository (only meaningful in multi-root workspaces)
+  // Select Repositories (only meaningful in multi-root workspaces)
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitIssues.selectRepository', async () => {
-      // Re-detect to pick up any newly added repos
-      const detected = await RepositoryResolver.detectAll();
-      if (detected.length === 0) {
-        vscode.window.showInformationMessage(
-          'Git Issues: No git repositories with an "origin" remote found in workspace'
-        );
-        return;
-      }
-
-      const active = getActiveRepository();
-      const items = detected.map(d => ({
-        label: `${d.remote.owner}/${d.remote.repo}`,
-        description: d.displayName,
-        detail: d.rootPath,
-        picked: active?.rootPath === d.rootPath,
-        folderPath: d.rootPath,
-      }));
-
-      const picked = await vscode.window.showQuickPick(items, {
-        placeHolder: 'Select repository for Git Issues',
-      });
-      if (!picked) { return; }
-
-      await reinitializeProvider(picked.folderPath);
-    })
+    vscode.commands.registerCommand('gitIssues.selectRepository', () =>
+      selectRepositories(context.workspaceState, getActiveRepository, reinitializeProvider)
+    )
   );
 
   // Configure GitHub Authentication — sign in via VSCode's built-in GitHub
@@ -619,8 +616,10 @@ export function registerCommands(
 
   // Configure GitLab Token
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitIssues.configureGitLabToken', async () => {
-      const suggestedHost = suggestGitLabHost(config, getActiveRepository());
+    vscode.commands.registerCommand('gitIssues.configureGitLabToken', async (hostHint?: string) => {
+      const suggestedHost = typeof hostHint === 'string' && hostHint
+        ? hostHint
+        : suggestGitLabHost(config, getActiveRepository());
 
       const host = await vscode.window.showInputBox({
         prompt: 'GitLab host (e.g. gitlab.com or gitlab.example.com)',

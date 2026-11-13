@@ -62,6 +62,7 @@ export class IssueWebviewPanel {
 
   private readonly panel: vscode.WebviewPanel;
   private disposables: vscode.Disposable[] = [];
+  private loadGeneration = 0;
 
   private constructor(
     panel: vscode.WebviewPanel,
@@ -120,35 +121,46 @@ export class IssueWebviewPanel {
   }
 
   private async loadIssue(): Promise<boolean> {
+    // The panel is reused across repositories: a slow load for an earlier
+    // issue must not paint over the one the user opened after it.
+    const generation = ++this.loadGeneration;
+    const provider = this.provider;
+    const issueNumber = this.issueNumber;
     try {
-      const issue = await this.provider.getIssue(this.issueNumber);
-      const labels = await this.provider.listLabels().catch((err) => {
+      const issue = await provider.getIssue(issueNumber);
+      const labels = await provider.listLabels().catch((err) => {
         console.warn('Failed to load labels:', err);
         return [];
       });
-      const assignees = await this.provider.listAssignees().catch((err) => {
+      const assignees = await provider.listAssignees().catch((err) => {
         console.warn('Failed to load assignees:', err);
         return [];
       });
-      const me = await this.provider.getCurrentUser().catch(() => null);
-      const linkedPullRequests = await this.provider
-        .listLinkedPullRequests(this.issueNumber)
+      const me = await provider.getCurrentUser().catch(() => null);
+      const linkedPullRequests = await provider
+        .listLinkedPullRequests(issueNumber)
         .catch((err) => {
           console.warn('Failed to load linked PRs/MRs:', err);
           return [];
         });
+      if (generation !== this.loadGeneration) {
+        return false;
+      }
       this.panel.title = `Issue #${issue.number}: ${issue.title}`;
       this.panel.webview.postMessage({
         type: 'issueLoaded',
         issue,
         labels,
         assignees,
-        repositoryInfo: this.provider.getRepositoryInfo(),
+        repositoryInfo: provider.getRepositoryInfo(),
         currentUserLogin: me?.login,
         linkedPullRequests,
       });
       return true;
     } catch (err) {
+      if (generation !== this.loadGeneration) {
+        return false;
+      }
       vscode.window.showErrorMessage(
         `Failed to load issue: ${err instanceof Error ? err.message : err}`
       );
@@ -210,12 +222,23 @@ export class IssueWebviewPanel {
   }
 
   private async handleAddComment(body: string): Promise<void> {
+    const provider = this.provider;
+    const issueNumber = this.issueNumber;
+    // The panel may have switched to another issue while the request ran;
+    // its webview must not receive the comment of the previous one.
+    const stillShowing = () => provider === this.provider && issueNumber === this.issueNumber;
     try {
-      const comment = await this.provider.addComment(this.issueNumber, body);
-      this.panel.webview.postMessage({ type: 'commentAdded', comment });
+      const comment = await provider.addComment(issueNumber, body);
+      if (stillShowing()) {
+        this.panel.webview.postMessage({ type: 'commentAdded', comment });
+      }
       vscode.window.showInformationMessage('Comment added');
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      if (!stillShowing()) {
+        vscode.window.showErrorMessage(`Failed to add comment: ${message}`);
+        return;
+      }
       this.panel.webview.postMessage({
         type: 'operationFailed',
         operation: 'addComment',

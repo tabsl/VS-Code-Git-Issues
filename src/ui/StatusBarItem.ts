@@ -63,25 +63,26 @@ export class IssueStatusBarItem implements vscode.Disposable {
     if (!this.enabled) {
       return;
     }
-    const issues = this.treeDataProvider.getIssues();
-    const me = this.treeDataProvider.getCurrentUserLogin();
+    const snapshots = this.treeDataProvider.getRepoSnapshots();
 
     // Hide only while we have no signal at all that a provider is wired up.
     // Once we know the current user, keep the item visible — even at zero
     // issues — so the user can always click through to the sidebar and see
     // that the extension is alive.
-    if (issues.length === 0 && !me) {
+    if (snapshots.every((s) => s.issues.length === 0 && !s.currentUserLogin)) {
       this.item.hide();
       return;
     }
 
-    const open = issues.filter((i) => i.state === 'open').length;
-    const assigned = me
-      ? issues.filter(
-          (i) =>
-            i.state === 'open' && i.assignees.some((a) => a.login === me)
-        ).length
-      : 0;
+    let open = 0;
+    let assigned = 0;
+    for (const { issues, currentUserLogin: me } of snapshots) {
+      const openIssues = issues.filter((i) => i.state === 'open');
+      open += openIssues.length;
+      if (me) {
+        assigned += openIssues.filter((i) => i.assignees.some((a) => a.login === me)).length;
+      }
+    }
 
     if (assigned > 0) {
       this.item.text = `$(issues) ${open} · $(person) ${assigned}`;
