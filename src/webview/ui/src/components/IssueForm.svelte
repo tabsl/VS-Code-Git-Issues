@@ -109,8 +109,9 @@
     const data: { title?: string; body?: string; labels?: string[]; assignees?: string[] } = {};
     if (trimmedTitle !== initialTitle) data.title = trimmedTitle;
     if (body !== initialBody) data.body = body;
-    if (!sameSet(selectedLabels, initialLabels)) data.labels = selectedLabels;
-    if (!sameSet(selectedAssignees, initialAssignees)) data.assignees = selectedAssignees;
+    // $state arrays are proxies, which the structured clone behind postMessage rejects
+    if (!sameSet(selectedLabels, initialLabels)) data.labels = $state.snapshot(selectedLabels);
+    if (!sameSet(selectedAssignees, initialAssignees)) data.assignees = $state.snapshot(selectedAssignees);
 
     if (Object.keys(data).length === 0) {
       errorMessage = 'No changes to save.';
@@ -119,7 +120,12 @@
 
     submitting = true;
     errorMessage = '';
-    postMessage({ type: 'updateIssue', data });
+    try {
+      postMessage({ type: 'updateIssue', data });
+    } catch (error) {
+      submitting = false;
+      errorMessage = error instanceof Error ? error.message : String(error);
+    }
   }
 </script>
 
